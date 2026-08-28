@@ -23,7 +23,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
 
 // https://vite.dev/config/
@@ -31,22 +30,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
-      registerType: "autoUpdate",
-      injectRegister: "auto",
-      manifest: {
-        name: "Swifty Chat",
-        short_name: "Swifty",
-        description: "realtime chat for the swifty-chat backend",
-        theme_color: "#e8879f",
-        background_color: "#faf1f4",
-        display: "standalone",
-        start_url: "/",
-      },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
-      },
-    }),
   ],
   resolve: {
     alias: {
