@@ -77,7 +77,7 @@ services:
       server:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-8081}:80"
 
 volumes:
   mongo-data:
