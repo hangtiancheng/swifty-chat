@@ -190,7 +190,7 @@ rules.ninja
 *.swp
 *.swo
 
-server/conf.json
+server/config.json
 
 .swifty
 **/.swifty

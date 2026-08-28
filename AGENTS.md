@@ -1,3 +1,4 @@
-@package.json
-
-Use package.json `dependencies` and `devDependencies` as more as possible, do NOT hand write.
+- ./ is React frontend project, recommend skills: shadcn
+- ./server is Go backend project, recommend skills: swifty-http, swifty-orm
+- respect to eslint.config.js
+- Use codegraph to speed up code exploration
