@@ -11,7 +11,9 @@
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "format": "prettier -w ./ --experimental-cli",
-    "typecheck": "tsc -b --noEmit"
+    "add:licenses": "node scripts/add_licenses.js",
+    "git:commit": "git add -A && git commit -m \"feat: Introduce new features\"",
+    "git:push": "pnpm git:commit && git push origin main"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
