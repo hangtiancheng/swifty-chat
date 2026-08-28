@@ -5,7 +5,7 @@
   },
   "mongo": {
     "uri": "mongodb://localhost:27017",
-    "database": "swifty_chatbot"
+    "database": "swifty_chat"
   },
   "cache": {
     "maxBytes": 67108864,

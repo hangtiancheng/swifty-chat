@@ -24,7 +24,7 @@ import * as z from "zod";
 
 import { resolveAvatar } from "@/utils/avatar";
 
-/** `Message.type` wire values (swifty_chat/internal/constant/constant.go). */
+/** `Message.type` wire values (internal/constant/constant.go). */
 export const MessageType = {
   Text: 0,
   Image: 1,

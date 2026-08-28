@@ -37,7 +37,7 @@ export default defineConfig({
       manifest: {
         name: "Swifty Chat",
         short_name: "Swifty",
-        description: "Realtime chat for the swifty_chat backend",
+        description: "realtime chat for the swifty-chat backend",
         theme_color: "#e8879f",
         background_color: "#faf1f4",
         display: "standalone",

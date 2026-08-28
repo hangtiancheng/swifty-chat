@@ -1,4 +1,4 @@
-# swifty_chat
+# Swifty Chat
 
 A chat server built on the swifty.go stack: swifty_http (HTTP + WebSocket),
 swifty_orm (MongoDB) and swifty_cache (in-process read-through cache).
