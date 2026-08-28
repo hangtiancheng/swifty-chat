@@ -95,6 +95,7 @@ func Login(ctx context.Context, telephone string, password string) (string, *Aut
 	if user.Status == constant.UserStatusDisable {
 		return "account is disabled", nil, -2
 	}
+	EnsureSwiftxContact(ctx, user.Uuid)
 	return "login successful", &AuthResponse{Token: issueToken(user.Uuid), UserInfo: toUserInfoResponse(&user)}, 0
 }
 
@@ -130,6 +131,7 @@ func Register(ctx context.Context, telephone, password, nickname string) (string
 	if _, err := dao.Engine.Model(&tag).Insert(ctx, &tag); err != nil {
 		log.Printf("Register: default tag insert failed: %v", err)
 	}
+	EnsureSwiftxContact(ctx, user.Uuid)
 	return "registration successful", &AuthResponse{Token: issueToken(user.Uuid), UserInfo: toUserInfoResponse(&user)}, 0
 }
 
@@ -160,6 +162,7 @@ func SearchUsers(ctx context.Context, ownerId, keyword string) (string, []Search
 	var users []model.UserInfo
 	err := dao.ActiveQuery(&users).
 		Where("uuid", "!=", ownerId).
+		Where("uuid", "!=", constant.SwiftxUUID).
 		Where("status", constant.UserStatusNormal).
 		Where(bson.M{"$or": bson.A{bson.M{"telephone": pattern}, bson.M{"nickname": pattern}}}).
 		Limit(20).
@@ -275,7 +278,23 @@ func AbleUsers(ctx context.Context, uuidList []string) (string, int) {
 	return "users enabled", 0
 }
 
+// withoutSwiftx strips the reserved assistant account from admin batch
+// operations so it can never be disabled or deleted.
+func withoutSwiftx(uuidList []string) []string {
+	filtered := make([]string, 0, len(uuidList))
+	for _, uuid := range uuidList {
+		if uuid != constant.SwiftxUUID {
+			filtered = append(filtered, uuid)
+		}
+	}
+	return filtered
+}
+
 func DisableUsers(ctx context.Context, uuidList []string) (string, int) {
+	uuidList = withoutSwiftx(uuidList)
+	if len(uuidList) == 0 {
+		return "the Swiftx assistant cannot be disabled", -2
+	}
 	_, err := dao.Engine.Model(&model.UserInfo{}).WhereIn("uuid", uuidList).Update(ctx, bson.M{"status": constant.UserStatusDisable})
 	if err != nil {
 		log.Println(err)
@@ -302,6 +321,10 @@ func DisableUsers(ctx context.Context, uuidList []string) (string, int) {
 }
 
 func DeleteUsers(ctx context.Context, uuidList []string) (string, int) {
+	uuidList = withoutSwiftx(uuidList)
+	if len(uuidList) == 0 {
+		return "the Swiftx assistant cannot be deleted", -2
+	}
 	now := time.Now()
 	_, err := dao.Engine.Model(&model.UserInfo{}).WhereIn("uuid", uuidList).Update(ctx, bson.M{"deleted_at": now})
 	if err != nil {

@@ -272,6 +272,10 @@ func loadSessions(ctx context.Context, ownerId string) ([]model.Session, error) 
 }
 
 func DeleteSession(ctx context.Context, ownerId, sessionId string) (string, int) {
+	var target model.Session
+	if err := dao.Engine.Model(&target).Where("uuid", sessionId).First(ctx, &target); err == nil && IsSwiftx(target.ReceiveId) {
+		return "the Swiftx session cannot be deleted", -2
+	}
 	now := time.Now()
 	_, err := dao.Engine.Model(&model.Session{}).Where("uuid", sessionId).Update(ctx, bson.M{"deleted_at": now})
 	if err != nil {

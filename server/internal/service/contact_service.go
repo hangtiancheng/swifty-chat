@@ -270,6 +270,9 @@ func GetContactInfo(ctx context.Context, userId, contactId string) (string, *Con
 }
 
 func ApplyContact(ctx context.Context, userId, contactId string, contactType int8, message string) (string, int) {
+	if IsSwiftx(contactId) {
+		return "the Swiftx assistant cannot be applied", -2
+	}
 	// Validate the target and refuse disabled targets.
 	if contactType == constant.ContactTypeUser {
 		var target model.UserInfo
@@ -467,6 +470,9 @@ func PassContactApply(ctx context.Context, applyId string) (string, int) {
 }
 
 func BlackContact(ctx context.Context, userId, contactId string) (string, int) {
+	if IsSwiftx(contactId) {
+		return "the Swiftx assistant cannot be blocked", -2
+	}
 	now := time.Now()
 	if _, err := dao.Engine.Model(&model.UserContact{}).
 		Where("user_id", userId).Where("contact_id", contactId).
@@ -510,6 +516,9 @@ func CancelBlackContact(ctx context.Context, userId, contactId string) (string, 
 }
 
 func DeleteContact(ctx context.Context, userId, contactId string) (string, int) {
+	if IsSwiftx(contactId) {
+		return "the Swiftx assistant cannot be removed", -2
+	}
 	err := dao.WithTransaction(ctx, func(sc context.Context, e *swifty_orm.Engine) error {
 		now := time.Now()
 		if _, err := e.Model(&model.UserContact{}).

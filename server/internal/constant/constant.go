@@ -25,6 +25,15 @@ const (
 	SystemError = "Internal Server Error"
 )
 
+// Swiftx is the built-in AI assistant. It lives in user_infos as a reserved
+// account (the "U" prefix keeps every id-prefix branch working) and every
+// user gets an undeletable contact + session pointing at it.
+const (
+	SwiftxUUID      = "USWIFTXAGENT"
+	SwiftxName      = "Swiftx"
+	SwiftxSignature = "Your built-in AI assistant"
+)
+
 // UserStatus
 const (
 	UserStatusNormal  int8 = 0
