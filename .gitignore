@@ -198,3 +198,5 @@ server/config.json
 **/.swiftx
 .playwright-cli
 **/.playwright-cli
+
+server/static

@@ -140,6 +140,24 @@ function finalizeThinking(state: Snapshot): Snapshot {
   };
 }
 
+/** A run that ended can no longer accept answers — the server fails leftover
+ * prompts (deny / empty answers), so their cards settle instead of staying
+ * clickable forever. */
+function settlePrompts(state: Snapshot): Snapshot {
+  return {
+    ...state,
+    items: state.items.map((item) => {
+      if (item.kind === "permission" && item.response === null) {
+        return { ...item, response: "deny" as const };
+      }
+      if (item.kind === "question" && !item.answered) {
+        return { ...item, answered: true };
+      }
+      return item;
+    }),
+  };
+}
+
 function apply(state: Snapshot, event: AgentEvent): Snapshot {
   switch (event.type) {
     case "connected":
@@ -339,7 +357,7 @@ function apply(state: Snapshot, event: AgentEvent): Snapshot {
       });
 
     case "loop_complete": {
-      const next = finalizeThinking(state);
+      const next = settlePrompts(finalizeThinking(state));
       return notice(
         { ...next, streaming: false },
         "done",
@@ -355,7 +373,7 @@ function apply(state: Snapshot, event: AgentEvent): Snapshot {
 
     case "error":
       return notice(
-        { ...state, streaming: false },
+        { ...settlePrompts(state), streaming: false },
         "error",
         event.data.message,
       );
@@ -374,7 +392,7 @@ function apply(state: Snapshot, event: AgentEvent): Snapshot {
       );
 
     case "command_done":
-      return { ...state, streaming: false };
+      return { ...settlePrompts(state), streaming: false };
 
     case "turn_complete":
     case "pong":

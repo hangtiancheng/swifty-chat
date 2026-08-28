@@ -29,8 +29,8 @@ import { Card } from "@/components/ui/card";
 
 export function AppShell() {
   return (
-    <div className="bg-background flex min-h-screen items-center justify-center p-4">
-      <Card className="shadow-primary/5 h-[600px] w-[1000px] flex-row gap-0 overflow-hidden p-0 shadow-xl">
+    <div className="bg-background h-dvh">
+      <Card className="size-full flex-row gap-0 overflow-hidden rounded-none border-none p-0 shadow-none">
         <NavBar />
         <Outlet />
       </Card>

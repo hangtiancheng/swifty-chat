@@ -21,7 +21,10 @@
  */
 
 import { enablePlugin, init } from "@swifty.js/sentry";
-import { PerformancePlugin, ScreenRecordPlugin } from "@swifty.js/sentry/plugins";
+import {
+  PerformancePlugin,
+  ScreenRecordPlugin,
+} from "@swifty.js/sentry/plugins";
 import { ReactErrorBoundary } from "@swifty.js/sentry/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { MotionConfig } from "motion/react";
@@ -45,12 +48,19 @@ createRoot(document.getElementById("root")!).render(
   <ReactErrorBoundary
     fallback={
       <div className="bg-background flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground text-center">Something went wrong</p>
+        <p className="text-muted-foreground text-center">
+          Something went wrong
+        </p>
       </div>
     }
   >
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         <MotionConfig reducedMotion="user">
           <TooltipProvider delay={300}>
             <App />

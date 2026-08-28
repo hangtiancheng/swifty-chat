@@ -21,22 +21,66 @@
 package agent_hub
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/swiftx/commands"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swiftx/permissions"
 	swiftx_session "github.com/hangtiancheng/swifty-chat/server/internal/swiftx/session"
+	"github.com/hangtiancheng/swifty-chat/server/internal/swiftx/skills"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swiftx/teams"
 )
 
 func (s *Session) commandList() []CommandInfo {
+	s.cmdMu.RLock()
 	cmds := s.cmdRegistry.ListCommands()
+	s.cmdMu.RUnlock()
 	list := make([]CommandInfo, 0, len(cmds))
 	for _, cmd := range cmds {
 		list = append(list, CommandInfo{Name: cmd.Name, Description: cmd.Description})
 	}
 	return list
+}
+
+// registerSkillCommand exposes one skill as a slash command, mirroring the
+// swiftx TUI wiring. Skills declared as fork-mode run inline here — the chat
+// session has no sub-agent host, the same fallback LoadSkillTool applies when
+// its ForkHost is nil. Idempotent: an already-taken name is left alone.
+func (s *Session) registerSkillCommand(name string) {
+	s.cmdMu.Lock()
+	defer s.cmdMu.Unlock()
+	s.registerSkillCommandLocked(name)
+}
+
+func (s *Session) registerSkillCommandLocked(name string) {
+	if s.skillCatalog == nil || s.cmdRegistry == nil {
+		return
+	}
+	if s.cmdRegistry.Find(name) != nil {
+		return
+	}
+	meta := s.skillCatalog.Get(name)
+	if meta == nil {
+		return
+	}
+	s.cmdRegistry.Register(&commands.Command{
+		Name:        name,
+		Description: meta.Meta.Description + " [skill]",
+		Type:        commands.TypePrompt,
+		Handler: func(ctx *commands.Context) string {
+			skill, err := s.skillCatalog.GetFull(name)
+			if err != nil && skill == nil {
+				return fmt.Sprintf("[skill error] %v", err)
+			}
+			body, runErr := skills.RunInline(context.Background(), skill, ctx.Args, s)
+			if runErr != nil {
+				return fmt.Sprintf("[skill error] %v", runErr)
+			}
+			s.ag.RecoveryState.RecordSkillInvocation(skill.Meta.Name, body)
+			return body
+		},
+	})
 }
 
 // handleSlashCommand runs a slash command typed into the composer. Commands
@@ -56,7 +100,9 @@ func (s *Session) handleSlashCommand(input string) {
 	if name == "" {
 		return
 	}
+	s.cmdMu.RLock()
 	cmd := s.cmdRegistry.Find(name)
+	s.cmdMu.RUnlock()
 	if cmd == nil {
 		s.emit(Event{Type: "error", Data: map[string]string{
 			"message": fmt.Sprintf("Unknown command: /%s — type /help to see available commands", name),
@@ -197,6 +243,8 @@ func (s *Session) buildCommandContext(args string) *commands.Context {
 		ToolCount:   func() int { return len(s.registry.ListTools()) },
 		SessionInfo: func() string { return fmt.Sprintf("Context: %s\nWorkspace: %s", s.sessionID, s.workDir) },
 		SkillList: func() []commands.SkillInfo {
+			s.cmdMu.RLock()
+			defer s.cmdMu.RUnlock()
 			if s.skillCatalog == nil {
 				return nil
 			}

@@ -21,6 +21,7 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Paperclip, Send, Smile, Square } from "lucide-react";
@@ -213,6 +214,39 @@ export function MessageComposer({
     editor?.chain().focus().clearContent().insertContent(`/${name} `).run();
   };
 
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const rowVirtualizer = useVirtualizer({
+    count: matches.length,
+    getScrollElement: () => menuRef.current,
+    estimateSize: () => 56,
+    overscan: 8,
+  });
+
+  // Keyboard moves queue a scroll here; hover highlights never do. The scroll
+  // itself runs after render, when the target row's true size is measured.
+  const keyboardScrollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const target = keyboardScrollRef.current;
+    if (target === null) return;
+    keyboardScrollRef.current = null;
+    const row = menuRef.current?.querySelector(`[data-index="${target}"]`);
+    if (row) {
+      row.scrollIntoView({ block: "nearest" });
+    } else {
+      // Wrap-around jump: the row is not rendered yet, so fall back to the
+      // virtualizer's estimated offset.
+      rowVirtualizer.scrollToIndex(target);
+    }
+  });
+
+  // A new query means the user is typing: the highlight is back on the first
+  // match, so the list snaps back to the top. Hovering never scrolls.
+  useEffect(() => {
+    if (query !== null && matches.length > 0) rowVirtualizer.scrollToIndex(0);
+  }, [query, matches.length, rowVirtualizer]);
+
   const sendText = () => {
     if (!editor) return;
     const value = editor.getText({ blockSeparator: "\n\n" }).trim();
@@ -235,17 +269,20 @@ export function MessageComposer({
     menuKeyRef.current = (event) => {
       if (!menuOpen) return false;
       switch (event.key) {
-        case "ArrowDown":
+        case "ArrowDown": {
           event.preventDefault();
-          setPick({ query, index: (active + 1) % matches.length });
+          const next = (active + 1) % matches.length;
+          keyboardScrollRef.current = next;
+          setPick({ query, index: next });
           return true;
-        case "ArrowUp":
+        }
+        case "ArrowUp": {
           event.preventDefault();
-          setPick({
-            query,
-            index: (active - 1 + matches.length) % matches.length,
-          });
+          const next = (active - 1 + matches.length) % matches.length;
+          keyboardScrollRef.current = next;
+          setPick({ query, index: next });
           return true;
+        }
         case "Tab":
         case "Enter":
           event.preventDefault();
@@ -304,37 +341,51 @@ export function MessageComposer({
       </AnimatePresence>
 
       {menuOpen && (
-        <ul
+        <div
+          ref={menuRef}
+          role="listbox"
           aria-label="Slash commands"
           className="border-border bg-popover absolute bottom-full left-2 z-20 mb-1 max-h-60 w-80 overflow-y-auto rounded-lg border p-1 shadow-md"
         >
-          {matches.map((command, index) => (
-            <li key={command.name}>
-              <button
-                type="button"
-                onMouseDown={(event) => {
-                  // Keeps the editor focused so the insert lands in the doc.
-                  event.preventDefault();
-                  applyCommand(command.name);
-                }}
-                onMouseEnter={() => setPick({ query, index })}
-                className={cn(
-                  "flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left",
-                  index === active && "bg-accent",
-                )}
-              >
-                <span className="font-mono text-xs font-medium">
-                  /{command.name}
-                </span>
-                {command.description && (
-                  <span className="text-muted-foreground line-clamp-2 text-xs">
-                    {command.description}
+          <div
+            className="relative w-full"
+            style={{ height: rowVirtualizer.getTotalSize() }}
+          >
+            {rowVirtualizer.getVirtualItems().map((row) => {
+              const command = matches[row.index];
+              return (
+                <button
+                  key={command.name}
+                  ref={rowVirtualizer.measureElement}
+                  data-index={row.index}
+                  type="button"
+                  role="option"
+                  aria-selected={row.index === active}
+                  onMouseDown={(event) => {
+                    // Keeps the editor focused so the insert lands in the doc.
+                    event.preventDefault();
+                    applyCommand(command.name);
+                  }}
+                  onMouseEnter={() => setPick({ query, index: row.index })}
+                  className={cn(
+                    "absolute top-0 left-0 flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left",
+                    row.index === active && "bg-accent",
+                  )}
+                  style={{ transform: `translateY(${row.start}px)` }}
+                >
+                  <span className="font-mono text-xs font-medium">
+                    /{command.name}
                   </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+                  {command.description && (
+                    <span className="text-muted-foreground line-clamp-2 text-xs">
+                      {command.description}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       <div className="relative">

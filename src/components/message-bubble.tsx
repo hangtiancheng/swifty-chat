@@ -225,7 +225,7 @@ export function MessageBubble({
 
               <div
                 className={cn(
-                  "flex min-w-0 flex-col gap-1",
+                  "flex max-w-[70%] min-w-0 flex-col gap-1",
                   isSelf ? "items-end" : "items-start",
                 )}
               >
@@ -238,9 +238,12 @@ export function MessageBubble({
 
                 <div
                   className={cn(
-                    "max-w-[70%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed wrap-break-word transition-shadow duration-300",
+                    "max-w-full rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed wrap-break-word transition-shadow duration-300",
                     isSelf
-                      ? "bg-primary text-primary-foreground hover:shadow-primary/20 rounded-br-md hover:shadow-md"
+                      ? // Streamdown paints links text-primary — the bubble's
+                        // own background here. They render as <button
+                        // data-streamdown="link">, so target the attribute.
+                        "bg-primary text-primary-foreground hover:shadow-primary/20 **:data-[streamdown=link]:text-primary-foreground rounded-br-md hover:shadow-md"
                       : "border-border bg-card text-foreground rounded-bl-md border shadow-sm hover:shadow-md",
                   )}
                 >

@@ -87,6 +87,13 @@ type Session struct {
 	done     chan struct{}
 	stopOnce sync.Once
 
+	// cmdMu guards cmdRegistry and skillCatalog. The TUI mutates these from a
+	// single loop; here the worker, attaching clients and the skill-install
+	// callback (which runs on an agent tool goroutine) all reach them. Reads
+	// dominate (every attach and slash command), writes happen only on skill
+	// install or reload, hence the RWMutex.
+	cmdMu sync.RWMutex
+
 	// Worker-goroutine state.
 	ag              *agent.Agent
 	conv            *conversation.Manager
@@ -236,6 +243,17 @@ func (s *Session) initAgent() error {
 		at.ParentChecker = ag.Checker
 	}
 	s.registry.Register(&skills.LoadSkillTool{Catalog: s.skillCatalog, Host: s})
+	for _, meta := range s.skillCatalog.List() {
+		s.registerSkillCommand(meta.Name)
+	}
+	s.registry.Register(&skills.InstallSkillTool{
+		Catalog: s.skillCatalog,
+		OnInstalled: func(name string) {
+			s.registerSkillCommand(name)
+			s.refreshSkillSection()
+			s.emit(Event{Type: "commands", Data: s.commandList()})
+		},
+	})
 	s.memoryExtractor = installMemExtractor(ag, wd, p.Protocol, client, s.registry, s.conv)
 	return nil
 }
@@ -397,6 +415,7 @@ func (s *Session) handlePrompt(job promptJob) {
 	if content == "" {
 		return
 	}
+	s.refreshSkillsIfNeeded()
 	s.chatSessionID = job.chatSessionID
 	s.setAnchor(job.messageID)
 	s.emit(Event{Type: "run_start", Data: map[string]string{"userMessageId": job.messageID}})
@@ -542,6 +561,12 @@ func (s *Session) requestPermission(e agent.PermissionRequestEvent) {
 	s.pendingPerms[id] = e.ResponseCh
 	s.pendingEvent[id] = ev
 	s.pendingMu.Unlock()
+	// A prompt raised while the stop was being delivered would miss the drain
+	// in cancel() and block the agent forever, so it is failed right away.
+	if s.cancelWasRequested() {
+		s.failPendingPrompts()
+		return
+	}
 	s.emit(ev)
 }
 
@@ -553,7 +578,14 @@ func (s *Session) requestAnswers(questions any, deliver func(tools.QuestionRespo
 	s.pendingAsks[id] = respCh
 	s.pendingEvent[id] = ev
 	s.pendingMu.Unlock()
-	s.emit(ev)
+	if s.cancelWasRequested() {
+		// Feeds respCh with empty answers, so the receive below returns at once.
+		s.failPendingPrompts()
+	} else {
+		s.emit(ev)
+	}
+	// The receive is evaluated on this goroutine, which is what keeps command
+	// handling ordered: deliver runs only once an answer (or a cancel) arrives.
 	go deliver(<-respCh)
 }
 
@@ -630,8 +662,32 @@ func (s *Session) cancel() {
 		s.cancelled = true
 	}
 	s.stateMu.Unlock()
-	if cancel != nil {
-		cancel()
+	if cancel == nil {
+		return
+	}
+	cancel()
+	// The agent waits on permission and question answers without watching the
+	// run context, so a run stopped mid-prompt would hang forever. Failing the
+	// prompts is what lets the loop wake up and see the cancelled context.
+	s.failPendingPrompts()
+}
+
+// failPendingPrompts denies every waiting permission request and returns empty
+// answers to every waiting question. Reply channels are buffered, so this never
+// blocks even when the asker already gave up.
+func (s *Session) failPendingPrompts() {
+	s.pendingMu.Lock()
+	perms := s.pendingPerms
+	asks := s.pendingAsks
+	s.pendingPerms = make(map[string]chan<- agent.PermissionResponse)
+	s.pendingAsks = make(map[string]chan tools.QuestionResponse)
+	s.pendingEvent = make(map[string]Event)
+	s.pendingMu.Unlock()
+	for _, ch := range perms {
+		ch <- agent.PermDeny
+	}
+	for _, ch := range asks {
+		ch <- tools.QuestionResponse{Answers: map[string]string{}}
 	}
 }
 
@@ -756,6 +812,35 @@ func (s *Session) ActivateSkill(name, body string) { s.ag.ActivateSkill(name, bo
 func (s *Session) SetToolFilter(allow func(name string) bool) { s.ag.SetToolFilter(allow) }
 
 func (s *Session) ToolRegistry() *tools.Registry { return s.registry }
+
+// refreshSkillSection recomputes the "Available Skills" listing after the
+// catalog changed. It reaches the model on the next fresh context (/clear),
+// which is when the listing is injected again.
+func (s *Session) refreshSkillSection() {
+	s.cmdMu.Lock()
+	s.skillSection = buildSkillSection(s.skillCatalog, s.workDir)
+	s.cmdMu.Unlock()
+	s.ag.SkillSection = s.skillSection
+}
+
+// refreshSkillsIfNeeded reloads the catalog when a skill directory changed, so
+// skills dropped into the workspace (or installed elsewhere) become slash
+// commands without waiting for this session to be evicted. Runs on the worker
+// between turns.
+func (s *Session) refreshSkillsIfNeeded() {
+	s.cmdMu.Lock()
+	if s.skillCatalog == nil || !s.skillCatalog.NeedsReload() {
+		s.cmdMu.Unlock()
+		return
+	}
+	s.skillCatalog.Reload(s.workDir)
+	for _, meta := range s.skillCatalog.List() {
+		s.registerSkillCommandLocked(meta.Name)
+	}
+	s.cmdMu.Unlock()
+	s.refreshSkillSection()
+	s.emit(Event{Type: "commands", Data: s.commandList()})
+}
 
 // Helpers
 

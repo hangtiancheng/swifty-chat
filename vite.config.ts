@@ -67,7 +67,10 @@ function fetchPriorityHints(): Plugin {
     enforce: "post",
     transformIndexHtml(html) {
       return html
-        .replace(/<link rel="stylesheet"/g, '<link rel="stylesheet" fetchpriority="high"')
+        .replace(
+          /<link rel="stylesheet"/g,
+          '<link rel="stylesheet" fetchpriority="high"',
+        )
         .replace(
           /<script type="module" crossorigin/g,
           '<script type="module" crossorigin fetchpriority="high"',
@@ -90,7 +93,11 @@ export default defineConfig({
     sentryPlugin({ dsn: "/api/log" }),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "favicon.ico", "apple-touch-icon-180x180.png"],
+      includeAssets: [
+        "favicon.svg",
+        "favicon.ico",
+        "apple-touch-icon-180x180.png",
+      ],
       manifest: {
         name: "resume",
         short_name: "resume",
