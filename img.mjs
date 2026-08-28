@@ -1,5 +1,11 @@
-const fs = require("fs");
+// @ts-check
+import { writeFileSync } from "fs";
 
+/**
+ *
+ * @param {string} str
+ * @returns {number}
+ */
 function fnv1a(str) {
   let hash = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
@@ -9,6 +15,11 @@ function fnv1a(str) {
   return hash >>> 0;
 }
 
+/**
+ *
+ * @param {number} seed
+ * @returns {() => number}
+ */
 function xorShift32(seed) {
   let state = seed || 1;
   return () => {
@@ -20,6 +31,11 @@ function xorShift32(seed) {
   };
 }
 
+/**
+ *
+ * @param {string | undefined} seed
+ * @returns {string}
+ */
 function genSVG(seed) {
   const seedStr = seed ?? Math.random().toString(36).slice(2);
   const rand = xorShift32(fnv1a(seedStr));
@@ -38,10 +54,14 @@ function genSVG(seed) {
   for (let col = 0; col < Math.ceil(GRID / 2); col++) {
     for (let row = 0; row < GRID; row++) {
       if (rand() >= 0.5) {
-        rects.push(`  <rect x="${MARGIN + col * CELL}" y="${MARGIN + row * CELL}" width="${CELL}" height="${CELL}" fill="${color}"/>`);
+        rects.push(
+          `  <rect x="${MARGIN + col * CELL}" y="${MARGIN + row * CELL}" width="${CELL}" height="${CELL}" fill="${color}"/>`,
+        );
         const mirrorCol = GRID - 1 - col;
         if (mirrorCol !== col) {
-          rects.push(`  <rect x="${MARGIN + mirrorCol * CELL}" y="${MARGIN + row * CELL}" width="${CELL}" height="${CELL}" fill="${color}"/>`);
+          rects.push(
+            `  <rect x="${MARGIN + mirrorCol * CELL}" y="${MARGIN + row * CELL}" width="${CELL}" height="${CELL}" fill="${color}"/>`,
+          );
         }
       }
     }
@@ -55,5 +75,5 @@ ${rects.join("\n")}
 
 const seed = process.argv[2] || Math.random().toString(36).slice(2);
 const svg = genSVG(seed);
-fs.writeFileSync("avatar.svg", svg);
+writeFileSync("avatar.svg", svg);
 console.log(`Generated avatar.svg with seed "${seed}"`);
