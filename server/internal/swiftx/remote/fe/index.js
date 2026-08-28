@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-// First: cd resolve(__filepath, ../../../../../swifty-cli)
+// First: cd resolve(__dirname, ../../../../../../swifty-cli)
 // Second: run `pnpm install`, then `pnpm fe:build`
-// Third: cp dist (/path/to/swifty-cli/apps/swifty/src/remote/fe/dist) to dirname(__filepath) (/path/to/swifty.go/swifty_cli/internal/remote/fe)
+// Third: cp -r dist (/path/to/swifty-cli/apps/swifty/src/remote/fe/dist) to /path/to/swifty-chat/server/internal/swiftx/remote/fe/
 
 import path from "node:path";
 import fs from "node:fs";
