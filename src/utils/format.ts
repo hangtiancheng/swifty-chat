@@ -54,6 +54,13 @@ export function formatSize(bytes: number): string {
   return (bytes / 1024).toFixed(1) + " KB";
 }
 
+/** Token counts run into the millions, so the assistant's meter abbreviates. */
+export function formatTokens(count: number): string {
+  if (count >= 1_000_000) return (count / 1_000_000).toFixed(1) + "M";
+  if (count >= 1000) return (count / 1000).toFixed(1) + "K";
+  return String(count);
+}
+
 /** Cache entry expirations arrive as nanoseconds. */
 export function formatExpire(nanos: number): string {
   if (nanos <= 0 || nanos >= Number.MAX_SAFE_INTEGER) return "never";

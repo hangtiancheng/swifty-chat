@@ -51,6 +51,11 @@ export const SYSTEM_SENDER = "SYSTEM";
 export const isUserId = (id: string) => id.startsWith("U");
 export const isGroupId = (id: string) => id.startsWith("G");
 
+/** The built-in assistant is a reserved account, so it keeps the "U" prefix and
+ * every id-prefix branch keeps working. Mirrors constant.SwiftxUUID. */
+export const SWIFTX_UUID = "USWIFTXAGENT";
+export const isSwiftx = (id: string) => id === SWIFTX_UUID;
+
 /** Go marshals empty slices as `null`. */
 export const wireList = <T extends z.ZodType>(item: T) =>
   z

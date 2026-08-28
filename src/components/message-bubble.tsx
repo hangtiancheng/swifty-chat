@@ -22,7 +22,7 @@
 
 import { Download, FileText, MessageCircle } from "lucide-react";
 import { motion } from "motion/react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,9 @@ interface MessageBubbleProps {
   currentUserId: string;
   currentUserAvatar: string;
   currentUserName: string;
+  /** Renders extra content directly after a given message. The assistant thread
+   * uses it to slot live tool calls and thinking into the spot they happened. */
+  renderAfter?: (messageUuid: string) => ReactNode;
 }
 
 async function downloadFile(url: string, name: string) {
@@ -159,6 +162,7 @@ export function MessageBubble({
   currentUserId,
   currentUserAvatar,
   currentUserName,
+  renderAfter,
 }: MessageBubbleProps) {
   // Call signalling is persisted as type 3 but carries no renderable payload.
   const conversation = messageList.filter(
@@ -234,7 +238,7 @@ export function MessageBubble({
 
                 <div
                   className={cn(
-                    "max-w-[70%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words transition-shadow duration-300",
+                    "max-w-[70%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed wrap-break-word transition-shadow duration-300",
                     isSelf
                       ? "bg-primary text-primary-foreground hover:shadow-primary/20 rounded-br-md hover:shadow-md"
                       : "border-border bg-card text-foreground rounded-bl-md border shadow-sm hover:shadow-md",
@@ -254,6 +258,7 @@ export function MessageBubble({
                 </div>
               </div>
             </motion.div>
+            {renderAfter?.(message.uuid)}
           </div>
         );
       })}

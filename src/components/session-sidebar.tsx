@@ -22,7 +22,7 @@
 
 import NumberFlow from "@number-flow/react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
+import { Bot, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -36,7 +36,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { groupSessionsQuery, userSessionsQuery } from "@/service/queries";
-import { MessageType, type ChatSession } from "@/service/schemas";
+import { isSwiftx, MessageType, type ChatSession } from "@/service/schemas";
 import useAuthStore from "@/store/auth";
 import { formatSessionTime } from "@/utils/format";
 
@@ -82,8 +82,11 @@ function SessionRow({ session, active, onSelect }: SessionRowProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-foreground truncate text-sm font-medium">
-            {session.name}
+          <span className="text-foreground flex min-w-0 items-center gap-1 text-sm font-medium">
+            {isSwiftx(session.id) && (
+              <Bot className="text-primary size-3.5 shrink-0" />
+            )}
+            <span className="truncate">{session.name}</span>
           </span>
           <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
             {formatSessionTime(session.lastMessageAtMs)}

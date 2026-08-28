@@ -18,54 +18,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package main
+package handler
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	"github.com/hangtiancheng/swifty-chat/server/internal/config"
-	"github.com/hangtiancheng/swifty-chat/server/internal/dao"
-	"github.com/hangtiancheng/swifty-chat/server/internal/router"
 	"github.com/hangtiancheng/swifty-chat/server/internal/service"
+	"github.com/hangtiancheng/swifty-chat/server/internal/util"
+
+	"github.com/hangtiancheng/swifty.go/swifty_http"
 )
 
-func main() {
-	conf := config.Load("config.json")
-	dao.InitMongo()
-	dao.InitIndexes()
-	dao.InitCache()
-	service.EnsureSwiftxUser(context.Background())
-	service.InitAgentHub()
-
-	go service.ChatServer.Start()
-
-	app := router.Setup()
-	addr := fmt.Sprintf("%s:%d", conf.App.Host, conf.App.Port)
-	log.Printf("server starting on %s", addr)
-
-	go func() {
-		if err := app.Listen(addr); err != nil {
-			log.Fatalf("server error: %v", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("shutting down...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_ = app.Shutdown(ctx)
-	service.ChatServer.Stop()
-	service.StopAgentHub()
-	dao.CloseCache()
-	dao.CloseMongo()
-	log.Println("server stopped")
+// AgentWs carries Swiftx's progress for one client: streaming text, thinking,
+// tool calls, and the permission and question prompts a run blocks on. Prompts
+// themselves travel the ordinary chat socket, so nothing here can put words in
+// the transcript.
+//
+// The identity comes from the token for the same reason /wss does: it decides
+// whose agent, whose workspace and whose approvals this socket speaks for.
+// Browsers cannot set handshake headers, so the token rides in the query string.
+func AgentWs(ctx *swifty_http.Context, next func()) {
+	claims, err := util.ParseToken(ctx.Query("token"), config.Get().Auth.JwtSecret)
+	if err != nil {
+		JsonStatus(ctx, 401, "invalid or expired token")
+		return
+	}
+	if service.AgentHub == nil {
+		JsonStatus(ctx, 503, "the assistant is not configured on this server")
+		return
+	}
+	ws, err := ctx.Upgrade(&swifty_http.UpgradeOptions{
+		MaxMessageSize: 4 << 20,
+	})
+	if err != nil {
+		return
+	}
+	service.AgentHub.Serve(claims.Uuid, ws)
 }

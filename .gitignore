@@ -194,3 +194,7 @@ server/config.json
 
 .swifty
 **/.swifty
+.swiftx
+**/.swiftx
+.playwright-cli
+**/.playwright-cli

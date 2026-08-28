@@ -1,23 +1,23 @@
 {
   "app": {
     "host": "0.0.0.0",
-    "port": 8000
+    "port": 8000,
   },
   "mongo": {
     "uri": "mongodb://localhost:27017",
-    "database": "swifty_chat"
+    "database": "swifty_chat",
   },
   "cache": {
     "maxBytes": 67108864,
-    "expiration": 300
+    "expiration": 300,
   },
   "static": {
     "avatarPath": "./static/avatars",
     "filePath": "./static/files",
-    "chunkPath": "./static/chunks"
+    "chunkPath": "./static/chunks",
   },
   "auth": {
     "jwtSecret": "swifty-chat-jwt-secret",
-    "tokenExpireHours": 336
-  }
+    "tokenExpireHours": 336,
+  },
 }

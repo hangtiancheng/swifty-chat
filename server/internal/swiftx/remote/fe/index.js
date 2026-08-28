@@ -33,7 +33,11 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {string} Root of the swifty-cli repository (sibling of swifty.go). */
-const swiftyCliRoot = path.resolve(__dirname, "../../../../../..", "swifty-cli");
+const swiftyCliRoot = path.resolve(
+  __dirname,
+  "../../../../../..",
+  "swifty-cli",
+);
 
 /** @type {string} Package dir that owns the `fe:build` script. */
 const swiftyAppDir = path.join(swiftyCliRoot, "apps", "swifty");

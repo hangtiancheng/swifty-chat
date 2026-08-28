@@ -175,12 +175,20 @@ func (c *Client) Close() {
 type Manager struct {
 	configs map[string]ServerConfig
 	clients map[string]*Client
+	// toolDefs caches each server's tool list so extra wrapper sets can be
+	// built without another round trip.
+	toolDefs map[string][]*mcp.Tool
+	// servers records what each live connection reported at initialize, so the
+	// full picture survives across incremental connect passes.
+	servers map[string]ServerInfo
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		configs: make(map[string]ServerConfig),
-		clients: make(map[string]*Client),
+		configs:  make(map[string]ServerConfig),
+		clients:  make(map[string]*Client),
+		toolDefs: make(map[string][]*mcp.Tool),
+		servers:  make(map[string]ServerInfo),
 	}
 }
 
@@ -202,11 +210,18 @@ type ConnectResult struct {
 	Errors  []string
 }
 
+// ConnectAll brings up every configured server that has no live connection yet
+// and reports what this pass added. Servers already connected are left
+// untouched, so calling it again retries only the ones that failed — a server
+// that was down earlier can join later without disturbing the working ones.
 func (m *Manager) ConnectAll(ctx context.Context) ConnectResult {
 	var errs []string
 	var registered []tools.Tool
 	var servers []ServerInfo
 	for name, cfg := range m.configs {
+		if _, live := m.clients[name]; live {
+			continue
+		}
 		client := NewClient(cfg)
 		if err := client.Connect(ctx); err != nil {
 			msg := fmt.Sprintf("MCP server '%s': %s", name, err)
@@ -214,21 +229,27 @@ func (m *Manager) ConnectAll(ctx context.Context) ConnectResult {
 			errs = append(errs, msg)
 			continue
 		}
-		m.clients[name] = client
 
 		info := ServerInfo{Name: name}
 		if initResult := client.session.InitializeResult(); initResult != nil {
 			info.Instructions = initResult.Instructions
 		}
-		servers = append(servers, info)
 
 		toolDefs, err := client.ListTools(ctx)
 		if err != nil {
 			msg := fmt.Sprintf("MCP server '%s' list tools: %s", name, err)
 			log.Println(msg)
 			errs = append(errs, msg)
+			// A server that cannot be listed is of no use, and keeping the
+			// connection would make it look connected on the next pass.
+			client.Close()
 			continue
 		}
+
+		m.clients[name] = client
+		m.toolDefs[name] = toolDefs
+		m.servers[name] = info
+		servers = append(servers, info)
 
 		for _, td := range toolDefs {
 			registered = append(registered, &MCPToolWrapper{
@@ -239,6 +260,49 @@ func (m *Manager) ConnectAll(ctx context.Context) ConnectResult {
 		}
 	}
 	return ConnectResult{Mgr: m, Tools: registered, Servers: servers, Errors: errs}
+}
+
+// ConnectedServers returns every server with a live connection, across all
+// connect passes.
+func (m *Manager) ConnectedServers() []ServerInfo {
+	list := make([]ServerInfo, 0, len(m.servers))
+	for _, info := range m.servers {
+		list = append(list, info)
+	}
+	return list
+}
+
+// MissingServers names the configured servers that are still not connected.
+func (m *Manager) MissingServers() []string {
+	var missing []string
+	for name := range m.configs {
+		if _, live := m.clients[name]; !live {
+			missing = append(missing, name)
+		}
+	}
+	return missing
+}
+
+// NewToolSet builds another wrapper for every tool on every connected server,
+// reusing the existing connections. Wrappers carry state that a tool registry
+// mutates — the defer flag ApplyMode sets — so anything sharing these servers
+// needs its own set rather than the one ConnectAll returned.
+func (m *Manager) NewToolSet() []tools.Tool {
+	var set []tools.Tool
+	for name, defs := range m.toolDefs {
+		client, ok := m.clients[name]
+		if !ok {
+			continue
+		}
+		for _, td := range defs {
+			set = append(set, &MCPToolWrapper{
+				serverName: name,
+				toolDef:    td,
+				client:     client,
+			})
+		}
+	}
+	return set
 }
 
 func (m *Manager) RegisterAllTools(ctx context.Context, registry *tools.Registry) []string {
@@ -254,6 +318,8 @@ func (m *Manager) Shutdown() {
 		client.Close()
 	}
 	m.clients = make(map[string]*Client)
+	m.toolDefs = make(map[string][]*mcp.Tool)
+	m.servers = make(map[string]ServerInfo)
 }
 
 // MCPToolWrapper adapts an MCP tool to the Tool interface

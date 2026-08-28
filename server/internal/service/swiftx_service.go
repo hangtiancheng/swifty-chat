@@ -25,9 +25,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/hangtiancheng/swifty-chat/server/internal/agent_hub"
 	"github.com/hangtiancheng/swifty-chat/server/internal/constant"
 	"github.com/hangtiancheng/swifty-chat/server/internal/dao"
 	"github.com/hangtiancheng/swifty-chat/server/internal/model"
+	"github.com/hangtiancheng/swifty-chat/server/internal/util"
 
 	"github.com/hangtiancheng/swifty.go/swifty_orm"
 )
@@ -77,4 +79,72 @@ func EnsureSwiftxContact(ctx context.Context, userId string) {
 // IsSwiftx reports whether the given uuid is the built-in assistant.
 func IsSwiftx(uuid string) bool {
 	return uuid == constant.SwiftxUUID
+}
+
+// AgentHub runs the assistant behind Swiftx. It stays nil when the server is
+// started without a swiftx configuration, in which case chat keeps working and
+// only the assistant thread reports itself unavailable.
+var AgentHub *agent_hub.Manager
+
+// InitAgentHub starts the assistant runtime. It is called from main rather than
+// init so it runs after Mongo and the cache are up.
+func InitAgentHub() {
+	AgentHub = agent_hub.NewManager(swiftxSink{})
+}
+
+func StopAgentHub() {
+	if AgentHub != nil {
+		AgentHub.Stop()
+	}
+}
+
+// swiftxSink files the assistant's replies as ordinary chat messages. Going
+// through the same insert-and-broadcast path a human peer takes is what gives
+// Swiftx working history, session previews and unread counts for free.
+type swiftxSink struct{}
+
+func (swiftxSink) SaveAssistantText(userID, sessionID, text string) string {
+	ctx := bgCtx()
+	name, avatar, ok := resolveSender(ctx, constant.SwiftxUUID)
+	if !ok {
+		name = constant.SwiftxName
+	}
+	msg := model.Message{
+		Uuid:       "M" + util.GetNowAndLenRandomString(11),
+		SessionId:  sessionID,
+		Type:       constant.MessageText,
+		Content:    text,
+		SendId:     constant.SwiftxUUID,
+		SendName:   name,
+		SendAvatar: avatar,
+		ReceiveId:  userID,
+		Status:     constant.MessageUnsent,
+		CreatedAt:  time.Now(),
+	}
+	if _, err := dao.Engine.Model(&msg).Insert(ctx, &msg); err != nil {
+		log.Printf("swiftxSink: insert reply failed: %v", err)
+		return ""
+	}
+	ChatServer.broadcast(ChatMessageRequest{SendAvatar: avatar}, msg, false)
+	return msg.Uuid
+}
+
+// dispatchToSwiftx routes a stored direct message into the assistant owned by
+// its sender. Group threads are deliberately left out: Swiftx only takes part
+// in one-to-one conversations.
+func dispatchToSwiftx(msg *model.Message) {
+	if !IsSwiftx(msg.ReceiveId) || msg.SendId == constant.SwiftxUUID {
+		return
+	}
+	if AgentHub == nil {
+		return
+	}
+	if msg.Type != constant.MessageText {
+		// Uploads are hidden in the assistant thread, so anything else here
+		// came from another client and deserves an answer rather than silence.
+		swiftxSink{}.SaveAssistantText(msg.SendId, msg.SessionId,
+			"I can only read text messages — please describe what you need in writing.")
+		return
+	}
+	AgentHub.Dispatch(msg.SendId, msg.SessionId, msg.Uuid, msg.Content)
 }

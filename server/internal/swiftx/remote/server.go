@@ -157,7 +157,7 @@ func (s *Server) Run() error {
 	app.Get("/", s.handleIndex)
 	app.Get("/ws", s.handleWS)
 
-	fmt.Printf("\n  🌐 Remote UI: http://localhost%s\n\n", s.addr)
+	fmt.Printf("\n  Remote UI: http://localhost%s\n\n", s.addr)
 	return app.Listen(s.addr)
 }
 
@@ -1001,7 +1001,7 @@ func (s *Server) ToolRegistry() *tools.Registry {
 func loadCustomInstructions(wd string) string {
 	paths := []string{
 		filepath.Join(wd, ".swiftx", "instructions.md"),
-		filepath.Join(wd, "CLAUDE.md"),
+		filepath.Join(wd, "AGENTS.md"),
 	}
 	var parts []string
 	for _, p := range paths {

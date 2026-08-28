@@ -26,6 +26,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStickToBottom } from "use-stick-to-bottom";
 
+import { AgentItemList } from "@/components/agent/agent-item";
+import { AgentStatus } from "@/components/agent/agent-status";
 import { ContactDetailDialog } from "@/components/contact-detail-dialog";
 import { GroupMembersDialog } from "@/components/group-members-dialog";
 import { GroupRequestsDialog } from "@/components/group-requests-dialog";
@@ -57,7 +59,9 @@ import {
   messagesQuery,
   openSessionQuery,
 } from "@/service/queries";
-import { isGroupId } from "@/service/schemas";
+import type { AgentItem } from "@/service/agent-schemas";
+import { isGroupId, isSwiftx } from "@/service/schemas";
+import useAgentStore from "@/store/agent";
 import useAuthStore from "@/store/auth";
 import useCallStore from "@/store/call";
 import useWsStore from "@/store/ws";
@@ -87,9 +91,49 @@ export default function Chat() {
   const messages = useQuery(messagesQuery(userId, id));
 
   const isGroup = isGroupId(id);
+  const isAssistant = isSwiftx(id);
   const isOwner = Boolean(
     contactInfo.data && contactInfo.data.contact_owner_id === userId,
   );
+
+  const agentStatus = useAgentStore((state) => state.status);
+  const agentItems = useAgentStore((state) => state.items);
+  const agentCommands = useAgentStore((state) => state.commands);
+  const agentStreaming = useAgentStore((state) => state.streaming);
+
+  // The control socket only carries live progress, so it is opened alongside
+  // the assistant thread and dropped when the user reads something else.
+  useEffect(() => {
+    if (!isAssistant) return;
+    const { connect, disconnect } = useAgentStore.getState();
+    connect();
+    return disconnect;
+  }, [isAssistant]);
+
+  // Live progress is filed after the message it followed. A streamed bubble
+  // hands over to its stored message once that message shows up, which keeps
+  // the handover free of both flicker and duplicates.
+  const storedUuids = new Set((messages.data ?? []).map((item) => item.uuid));
+  const overlayByAnchor = new Map<string, AgentItem[]>();
+  const trailingOverlay: AgentItem[] = [];
+  if (isAssistant) {
+    for (const item of agentItems) {
+      if (
+        item.kind === "stream" &&
+        item.messageId &&
+        storedUuids.has(item.messageId)
+      ) {
+        continue;
+      }
+      const bucket = storedUuids.has(item.anchorId)
+        ? (overlayByAnchor.get(item.anchorId) ?? [])
+        : trailingOverlay;
+      bucket.push(item);
+      if (storedUuids.has(item.anchorId)) {
+        overlayByAnchor.set(item.anchorId, bucket);
+      }
+    }
+  }
 
   const { scrollRef, contentRef } = useStickToBottom({
     initial: "instant",
@@ -162,41 +206,47 @@ export default function Chat() {
           </div>
 
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground"
-                    aria-label="Audio call"
-                    disabled={!contactInfo.data}
-                    onClick={() => startCall("audio")}
-                  />
-                }
-              >
-                <Phone className="size-4" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Audio Call</TooltipContent>
-            </Tooltip>
+            {isAssistant ? (
+              <AgentStatus />
+            ) : (
+              <>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground"
+                        aria-label="Audio call"
+                        disabled={!contactInfo.data}
+                        onClick={() => startCall("audio")}
+                      />
+                    }
+                  >
+                    <Phone className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Audio Call</TooltipContent>
+                </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground"
-                    aria-label="Video call"
-                    disabled={!contactInfo.data}
-                    onClick={() => startCall("video")}
-                  />
-                }
-              >
-                <Video className="size-4" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Video Call</TooltipContent>
-            </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground"
+                        aria-label="Video call"
+                        disabled={!contactInfo.data}
+                        onClick={() => startCall("video")}
+                      />
+                    }
+                  >
+                    <Video className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Video Call</TooltipContent>
+                </Tooltip>
+              </>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -244,20 +294,23 @@ export default function Chat() {
                   </>
                 )}
 
-                <DropdownMenuItem
-                  className="text-sm"
-                  onClick={() =>
-                    leaveConversation.mutate({
-                      run: () => session.remove(userId, openSession.data ?? ""),
-                      message: "Session deleted",
-                      staleKey: keys.sessions.all,
-                    })
-                  }
-                >
-                  Delete Session
-                </DropdownMenuItem>
+                {!isAssistant && (
+                  <DropdownMenuItem
+                    className="text-sm"
+                    onClick={() =>
+                      leaveConversation.mutate({
+                        run: () =>
+                          session.remove(userId, openSession.data ?? ""),
+                        message: "Session deleted",
+                        staleKey: keys.sessions.all,
+                      })
+                    }
+                  >
+                    Delete Session
+                  </DropdownMenuItem>
+                )}
 
-                {!isGroup && (
+                {!isGroup && !isAssistant && (
                   <>
                     <DropdownMenuItem
                       className="text-sm"
@@ -335,12 +388,33 @@ export default function Chat() {
                 currentUserId={userInfo.uuid}
                 currentUserAvatar={userInfo.avatar}
                 currentUserName={userInfo.nickname}
+                renderAfter={
+                  isAssistant
+                    ? (uuid) => {
+                        const items = overlayByAnchor.get(uuid);
+                        return items ? <AgentItemList items={items} /> : null;
+                      }
+                    : undefined
+                }
               />
             )}
+            {isAssistant && <AgentItemList items={trailingOverlay} />}
           </div>
         </div>
 
-        <MessageComposer disabled={!contactInfo.data} onSend={sendMessage} />
+        {isAssistant ? (
+          <MessageComposer
+            disabled={!contactInfo.data || agentStatus !== "connected"}
+            onSend={sendMessage}
+            commands={agentCommands}
+            streaming={agentStreaming}
+            onStop={useAgentStore.getState().stop}
+            allowAttachments={false}
+            placeholder="Ask Swiftx — markdown supported, / for commands"
+          />
+        ) : (
+          <MessageComposer disabled={!contactInfo.data} onSend={sendMessage} />
+        )}
       </div>
 
       <ContactDetailDialog

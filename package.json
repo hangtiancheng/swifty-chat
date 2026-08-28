@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "format": "prettier -w ./ --experimental-cli",
+    "pwa": "pnpm dlx @vite-pwa/assets-generator --preset minimal public/favicon.svg",
     "add:licenses": "node scripts/add-licenses.js",
     "git:commit": "git add -A && git commit -m \"feat: Introduce new features\"",
     "git:push": "pnpm git:commit && git push origin main"
@@ -22,6 +23,7 @@
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",
     "@streamdown/mermaid": "^1.0.2",
+    "@swifty.js/sentry": "^0.0.6",
     "@t3-oss/env-core": "^0.13.11",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "^5.102.6",
@@ -74,6 +76,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.68.0",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

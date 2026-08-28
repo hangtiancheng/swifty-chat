@@ -111,6 +111,7 @@ func Setup() *swifty_http.Application {
 	chatroom.Post("/get-callers", handler.GetCallers)
 
 	app.Get("/wss", handler.WsLogin)
+	app.Get("/agent/ws", handler.AgentWs)
 	app.Get("/dashboard/ws", swifty_cache.DashboardHandler())
 
 	return app

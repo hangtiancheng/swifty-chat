@@ -57,11 +57,11 @@ type Message struct {
 }
 
 type Manager struct {
-	history        []Message
-	ltmInjected    bool
-	baselineTokens int
-	anchorCount    int
-	hasUsage       bool
+	history                []Message
+	longTermMemoryInjected bool
+	baselineTokens         int
+	anchorCount            int
+	hasUsage               bool
 }
 
 func NewManager() *Manager {
@@ -145,7 +145,7 @@ func (m *Manager) HasReminderContaining(marker string) bool {
 }
 
 func (m *Manager) InjectLongTermMemory(instructions, memories, skills string) {
-	if m.ltmInjected {
+	if m.longTermMemoryInjected {
 		return
 	}
 	var sections []string
@@ -170,7 +170,7 @@ func (m *Manager) InjectLongTermMemory(instructions, memories, skills string) {
 		body +
 		"\n\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\n</system-reminder>"
 	m.history = append([]Message{{Role: "user", Content: wrapped}}, m.history...)
-	m.ltmInjected = true
+	m.longTermMemoryInjected = true
 }
 
 // AppendMessages copies the given messages onto the end of the history. Used by
@@ -191,6 +191,17 @@ func (m *Manager) TruncateTo(index int) {
 		return
 	}
 	m.history = m.history[:index]
+}
+
+// Reset empties the conversation in place. Replacing the Manager would strand
+// every component that captured the old pointer — the fork tool and the memory
+// extractor both hold one — so a reset has to happen behind the same address.
+// Clearing longTermMemoryInjected lets instructions, memories and skills be re-injected
+// on the next turn, exactly as they are for a brand-new conversation.
+func (m *Manager) Reset() {
+	m.history = nil
+	m.longTermMemoryInjected = false
+	m.ClearUsageAnchor()
 }
 
 func (m *Manager) GetMessages() []Message {
