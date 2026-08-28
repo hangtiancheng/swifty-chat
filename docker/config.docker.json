@@ -17,7 +17,7 @@
     "chunkPath": "./static/chunks"
   },
   "auth": {
-    "jwtSecret": "CHANGE-ME-before-production",
+    "jwtSecret": "swifty-chat-jwt-secret",
     "tokenExpireHours": 336
   }
 }

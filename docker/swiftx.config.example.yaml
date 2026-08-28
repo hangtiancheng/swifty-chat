@@ -30,22 +30,24 @@ permission_mode: default
 providers:
   - name: ds-anthropic
     protocol: anthropic
-    base_url: https://api.deepseek.com/anthropic  # REQUIRED, string — API endpoint
+    base_url: https://api.deepseek.com/anthropic # REQUIRED, string — API endpoint
     model: "deepseek-v4-flash"
-    api_key: "sk-REPLACE-ME"                # optional, string, default: falls back to env var
-    thinking: true                           # optional, boolean, default: false — enable extended thinking
-    context_window: 1000000                  # optional, number, default: built-in lookup by model name
-                                             #   (claude -> 200000, gpt-4.1/1m -> 1000000, else 128000)
-    max_output_tokens: 12800               # optional, number, default: 8192 (64000 when thinking: true)
+    api_key: "sk-REPLACE-ME" # optional, string, default: falls back to env var
+    thinking: true # optional, boolean, default: false — enable extended thinking
+    context_window:
+      1000000 # optional, number, default: built-in lookup by model name
+      #   (claude -> 200000, gpt-4.1/1m -> 1000000, else 128000)
+    max_output_tokens: 12800 # optional, number, default: 8192 (64000 when thinking: true)
   - name: ds-openai
     protocol: openai
-    base_url: https://api.deepseek.com      # REQUIRED, string — API endpoint
+    base_url: https://api.deepseek.com # REQUIRED, string — API endpoint
     model: "deepseek-v4-flash"
-    api_key: "sk-REPLACE-ME"                # optional, string, default: falls back to env var
-    thinking: true                           # optional, boolean, default: false — enable extended thinking
-    context_window: 1000000                  # optional, number, default: built-in lookup by model name
-                                             #   (claude -> 200000, gpt-4.1/1m -> 1000000, else 128000)
-    max_output_tokens: 128000               # optional, number, default: 8192 (64000 when thinking: true)
+    api_key: "sk-REPLACE-ME" # optional, string, default: falls back to env var
+    thinking: true # optional, boolean, default: false — enable extended thinking
+    context_window:
+      1000000 # optional, number, default: built-in lookup by model name
+      #   (claude -> 200000, gpt-4.1/1m -> 1000000, else 128000)
+    max_output_tokens: 128000 # optional, number, default: 8192 (64000 when thinking: true)
 
 # MCP servers — optional, empty by default.
 mcp_servers:
