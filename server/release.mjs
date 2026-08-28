@@ -41,7 +41,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** GitHub repository that hosts the releases. */
-const REPO = "hangtiancheng/swifty.go";
+const REPO = "hangtiancheng/swifty-chat";
 
 /** Output directory produced by build.mjs, relative to the project root. */
 const OUTPUT_DIR = "build";
