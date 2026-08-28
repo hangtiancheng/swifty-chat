@@ -23,6 +23,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { sentryPlugin } from "@swifty.js/sentry/vite";
 import { fileURLToPath } from "node:url";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolve, join } from "node:path";
@@ -66,10 +67,7 @@ function fetchPriorityHints(): Plugin {
     enforce: "post",
     transformIndexHtml(html) {
       return html
-        .replace(
-          /<link rel="stylesheet"/g,
-          '<link rel="stylesheet" fetchpriority="high"',
-        )
+        .replace(/<link rel="stylesheet"/g, '<link rel="stylesheet" fetchpriority="high"')
         .replace(
           /<script type="module" crossorigin/g,
           '<script type="module" crossorigin fetchpriority="high"',
@@ -88,13 +86,11 @@ export default defineConfig({
     tailwindcss(),
     moveSourcemaps(),
     fetchPriorityHints(),
+    // Mock report endpoint for @swifty.js/sentry; dsn must match the init() call.
+    sentryPlugin({ dsn: "/api/log" }),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [
-        "favicon.svg",
-        "favicon.ico",
-        "apple-touch-icon-180x180.png",
-      ],
+      includeAssets: ["favicon.svg", "favicon.ico", "apple-touch-icon-180x180.png"],
       manifest: {
         name: "resume",
         short_name: "resume",

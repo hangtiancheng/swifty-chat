@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+import { setUserId } from "@swifty.js/sentry";
 import { useEffect } from "react";
 import {
   createBrowserRouter,
@@ -45,17 +46,14 @@ import SessionList from "./pages/session-list";
 
 const requireAuth = () => (isAuthenticated() ? null : redirect("/login"));
 
-const redirectWhenSignedIn = () =>
-  isAuthenticated() ? redirect("/chat/sessions") : null;
+const redirectWhenSignedIn = () => (isAuthenticated() ? redirect("/chat/sessions") : null);
 
 function RootErrorBoundary() {
   const error = useRouteError();
   return (
     <div className="bg-background flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="text-destructive text-2xl font-semibold">
-          Something went wrong
-        </h1>
+        <h1 className="text-destructive text-2xl font-semibold">Something went wrong</h1>
         <p className="text-muted-foreground mt-2">{errorMessage(error)}</p>
       </div>
     </div>
@@ -92,6 +90,7 @@ export default function App() {
 
   // Covers first login, a reload with a persisted token, and logout.
   useEffect(() => {
+    setUserId(userId || "unknown");
     if (!userId) return;
     const ws = useWsStore.getState();
     ws.connect(userId);
