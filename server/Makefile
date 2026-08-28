@@ -9,3 +9,7 @@ swiftx: ## Run the swiftx TUI
 build: ## Build both binaries into ./tmp
 	go build -o ./tmp/main ./cmd
 	go build -o ./tmp/swiftx ./cmd/swiftx
+
+sync:
+	rm -rf ~/.swiftx
+	cp -r ~/.swifty ~/.swiftx
