@@ -1,0 +1,64 @@
+name: swifty-chat
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  server:
+    build:
+      context: .
+      target: server
+      # args:
+      #   GOPROXY: https://proxy.golang.org,direct
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "${SERVER_PORT:-8000}:8000"
+    volumes:
+      # Chat server config (port, mongo, jwt secret, static paths).
+      - ./docker/config.docker.json:/app/config.json:ro
+      # Swiftx agent providers + permission mode. Create it first:
+      #   cp docker/swiftx.config.example.yaml docker/swiftx.config.yaml
+      - ./docker/swiftx.config.yaml:/root/.swiftx/config.yaml:ro
+      # Uploaded avatars / files / chunks.
+      - static-data:/app/static
+      # Per-user agent workspaces, transcripts and skills (.swiftx/chat/<uid>).
+      - swiftx-data:/app/.swiftx
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8000"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        # Baked into the bundle at build time. Point it at wherever the
+        # browser can reach the server container; rebuild after changing it:
+        #   VITE_API_URL=https://your-host:8000 docker compose build web
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  mongo-data:
+  static-data:
+  swiftx-data:

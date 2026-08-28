@@ -1,0 +1,22 @@
+# Anything not needed to build the web bundle or the Go server.
+!.env.example
+*.log
+.codegraph
+.env
+.env.*
+.git
+.github
+.playwright-cli
+.qoder
+.swifty
+.swiftx
+Dockerfile
+dist
+docker-compose.yml
+docker/swiftx.config.yaml
+docs
+logs
+node_modules
+server/config.json
+server/tmp
+static

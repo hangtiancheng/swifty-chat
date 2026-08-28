@@ -1,0 +1,45 @@
+# Swifty project-level configuration
+# See src/config/config.ts for schema details.
+
+# Permission mode: "default" | "acceptEdits" | "plan" | "bypassPermissions"
+permission_mode: default
+
+# LLM providers — at least one is required.
+# api_key is intentionally left empty; it falls back to the ANTHROPIC_API_KEY
+# (or OPENAI_API_KEY) environment variable at runtime.
+providers:
+  - name: ds-anthropic
+    protocol: anthropic
+    base_url: https://api.deepseek.com/anthropic  # REQUIRED, string — API endpoint
+    model: "deepseek-v4-flash"
+    api_key: "sk-REPLACE-ME"                # optional, string, default: falls back to env var
+    thinking: true                           # optional, boolean, default: false — enable extended thinking
+    context_window: 1000000                  # optional, number, default: built-in lookup by model name
+                                             #   (claude -> 200000, gpt-4.1/1m -> 1000000, else 128000)
+    max_output_tokens: 12800               # optional, number, default: 8192 (64000 when thinking: true)
+  - name: ds-openai
+    protocol: openai
+    base_url: https://api.deepseek.com      # REQUIRED, string — API endpoint
+    model: "deepseek-v4-flash"
+    api_key: "sk-REPLACE-ME"                # optional, string, default: falls back to env var
+    thinking: true                           # optional, boolean, default: false — enable extended thinking
+    context_window: 1000000                  # optional, number, default: built-in lookup by model name
+                                             #   (claude -> 200000, gpt-4.1/1m -> 1000000, else 128000)
+    max_output_tokens: 128000               # optional, number, default: 8192 (64000 when thinking: true)
+
+# MCP servers — optional, empty by default.
+mcp_servers:
+  - name: "codegraph"
+    command: codegraph
+    args: ["serve", "--mcp"]
+
+# Hooks — optional, empty by default.
+hooks: []
+  # Example: lint after EditFile
+  # - id: lint-on-edit
+  #   event: post_tool_use
+  #   condition: 'tool == "EditFile"'
+  #   action:
+  #     type: command
+  #     command: npx eslint --fix "$SWIFTY_FILE_PATH"
+  #   on_error: ignore

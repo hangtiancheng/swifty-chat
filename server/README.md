@@ -6,8 +6,8 @@ swifty_orm (MongoDB) and swifty_cache (in-process read-through cache).
 ## Run
 
 ```bash
-go run ./cmd                          # backend, reads ./config.json
-cd ../apps/swifty-chat && pnpm dev    # frontend dev server
+go run ./cmd         # backend, reads ./config.json
+cd ../ && pnpm dev   # frontend dev server
 ```
 
 ## Capabilities

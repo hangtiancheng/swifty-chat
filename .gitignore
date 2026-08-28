@@ -200,3 +200,6 @@ server/config.json
 **/.playwright-cli
 
 server/static
+
+# Dockerized Swiftx provider config carries real API keys.
+docker/swiftx.config.yaml
