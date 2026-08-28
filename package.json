@@ -11,7 +11,7 @@
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "format": "prettier -w ./ --experimental-cli",
-    "add:licenses": "node scripts/add_licenses.js",
+    "add:licenses": "node scripts/add-licenses.js",
     "git:commit": "git add -A && git commit -m \"feat: Introduce new features\"",
     "git:push": "pnpm git:commit && git push origin main"
   },
