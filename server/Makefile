@@ -13,3 +13,6 @@ build: ## Build both binaries into ./tmp
 sync:
 	rm -rf ~/.swiftx
 	cp -r ~/.swifty ~/.swiftx
+
+remote:
+	node ./internal/swiftx/remote/fe/index.js
