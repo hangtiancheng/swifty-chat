@@ -22,7 +22,6 @@ package teams
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -31,6 +30,7 @@ import (
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/agent"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/conversation"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/llm"
+	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/permissions"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/tools"
 )
 
@@ -52,7 +52,6 @@ type Member struct {
 	Conv     *conversation.Manager
 	Active   bool
 	Cancel   context.CancelFunc
-	Progress *TeammateProgress
 
 	// The following fields are metadata for persistence; they do not
 	// participate in runtime scheduling and are only used when writing
@@ -66,8 +65,11 @@ type Member struct {
 
 type Team struct {
 	Name    string
-	Members map[string]*Member
 	MailBox *FileMailBox
+
+	// members is guarded by mu. Use the HasMember/GetMember/MemberNames
+	// accessors instead of touching the map directly.
+	members map[string]*Member
 	mu      sync.Mutex
 
 	// Team-level metadata for persistence.
@@ -80,72 +82,55 @@ func NewTeam(name string) *Team {
 	inboxDir := filepath.Join(teamDir(name), "inboxes")
 	return &Team{
 		Name:      name,
-		Members:   make(map[string]*Member),
+		members:   make(map[string]*Member),
 		MailBox:   NewFileMailBox(inboxDir),
 		CreatedAt: time.Now().Unix(),
 	}
 }
 
-func (t *Team) AddMember(name string, client llm.Client, registry *tools.Registry, protocol string) *Member {
+// MemberInit carries everything AddMember needs to build a fully configured
+// member in one step. Applying metadata here (instead of patching it in after
+// the member goroutine already runs) guarantees the agent's workdir and
+// permission checker are in place before its first turn.
+type MemberInit struct {
+	Client       llm.Client
+	Registry     *tools.Registry
+	Protocol     string
+	Checker      *permissions.Checker
+	AgentType    string
+	Model        string
+	WorktreePath string
+}
+
+func (t *Team) AddMember(name string, init MemberInit) *Member {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	ag := agent.New(client, registry, protocol)
-	member := &Member{
-		Name:     name,
-		AgentRef: ag,
-		Conv:     conversation.NewManager(),
-		Active:   false,
-		AgentID:  name,
-		JoinedAt: time.Now().Unix(),
+	ag := agent.New(init.Client, init.Registry, init.Protocol)
+	if init.WorktreePath != "" {
+		ag.WorkDir = init.WorktreePath
 	}
-	t.Members[name] = member
+	ag.Checker = init.Checker
+	member := &Member{
+		Name:         name,
+		AgentRef:     ag,
+		Conv:         conversation.NewManager(),
+		Active:       false,
+		AgentID:      name,
+		AgentType:    init.AgentType,
+		Model:        init.Model,
+		WorktreePath: init.WorktreePath,
+		JoinedAt:     time.Now().Unix(),
+	}
+	t.members[name] = member
 	t.persist()
 	return member
-}
-
-// SetMemberMeta fills in member metadata (agent type, model, worktree path)
-// and persists it. The spawn flow obtains this information later than
-// AddMember, so it is written in two steps.
-func (t *Team) SetMemberMeta(name, agentType, model, worktreePath string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	member, ok := t.Members[name]
-	if !ok {
-		return
-	}
-	member.AgentType = agentType
-	member.Model = model
-	member.WorktreePath = worktreePath
-	t.persist()
-}
-
-func (t *Team) StartMember(ctx context.Context, name string, task string) (<-chan agent.AgentEvent, error) {
-	t.mu.Lock()
-	member, ok := t.Members[name]
-	t.mu.Unlock()
-
-	if !ok {
-		return nil, fmt.Errorf("member not found: %s", name)
-	}
-
-	memberCtx, cancel := context.WithCancel(ctx)
-	member.Active = true
-	member.Cancel = cancel
-
-	t.mu.Lock()
-	t.persist()
-	t.mu.Unlock()
-
-	member.Conv.AddUserMessage(task)
-	ch := member.AgentRef.Run(memberCtx, member.Conv)
-	return ch, nil
 }
 
 func (t *Team) StopMember(name string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	member, ok := t.Members[name]
+	member, ok := t.members[name]
 	if !ok {
 		return
 	}
@@ -156,16 +141,38 @@ func (t *Team) StopMember(name string) {
 	t.persist()
 }
 
-func (t *Team) GetTeammateProgress() []*TeammateProgress {
+// HasMember reports whether name is registered on the team.
+func (t *Team) HasMember(name string) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	var result []*TeammateProgress
-	for _, m := range t.Members {
-		if m.Progress != nil {
-			result = append(result, m.Progress)
-		}
+	_, ok := t.members[name]
+	return ok
+}
+
+// GetMember returns the named member, or nil when absent.
+func (t *Team) GetMember(name string) *Member {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.members[name]
+}
+
+// MemberNames returns a snapshot of the current member names.
+func (t *Team) MemberNames() []string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	names := make([]string, 0, len(t.members))
+	for n := range t.members {
+		names = append(names, n)
 	}
-	return result
+	return names
+}
+
+// IsMemberActive reports whether the named member exists and is running.
+func (t *Team) IsMemberActive(name string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	member, ok := t.members[name]
+	return ok && member.Active
 }
 
 func (t *Team) SendMessage(from, to, content string) {
@@ -260,7 +267,7 @@ func (tm *TeamManager) GetTeam(name string) *Team {
 		if m.IsActive != nil {
 			active = *m.IsActive
 		}
-		team.Members[m.Name] = &Member{
+		team.members[m.Name] = &Member{
 			Name:         m.Name,
 			AgentID:      m.AgentID,
 			AgentType:    m.AgentType,
@@ -279,7 +286,7 @@ func (tm *TeamManager) DeleteTeam(name string) {
 	defer tm.mu.Unlock()
 	if team, ok := tm.teams[name]; ok {
 		registry := GetNameRegistry()
-		for memberName := range team.Members {
+		for _, memberName := range team.MemberNames() {
 			team.StopMember(memberName)
 			// Unbind this member's mapping in the global name registry.
 			registry.Unregister(memberName)
@@ -303,21 +310,13 @@ func (tm *TeamManager) ListTeams() []string {
 	return names
 }
 
-func (tm *TeamManager) GetAllTeammateProgress() []*TeammateProgress {
-	tm.mu.Lock()
-	defer tm.mu.Unlock()
-	var result []*TeammateProgress
-	for _, team := range tm.teams {
-		result = append(result, team.GetTeammateProgress()...)
-	}
-	return result
-}
-
+// CloseAll stops every member of every team. Session.close calls this so
+// teammate goroutines cannot outlive the session that spawned them.
 func (tm *TeamManager) CloseAll() {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 	for name, team := range tm.teams {
-		for memberName := range team.Members {
+		for _, memberName := range team.MemberNames() {
 			team.StopMember(memberName)
 		}
 		delete(tm.teams, name)

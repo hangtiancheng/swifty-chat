@@ -289,7 +289,6 @@ func (s *Session) registerTools(client llm.Client, p *config.ProviderConfig, wd 
 		Registry:      s.registry,
 		Protocol:      p.Protocol,
 		TaskMgr:       s.taskMgr,
-		ProgressCh:    make(chan subagent.SubAgentProgress, 32),
 		Loader:        loader,
 		Conversation:  s.conv,
 		TeamMgr:       s.teamMgr,
@@ -482,11 +481,6 @@ func (s *Session) consumeAgentEvents() {
 
 		case agent.PermissionRequestEvent:
 			s.requestPermission(e)
-
-		case agent.AskUserQuestionEvent:
-			s.requestAnswers(e.Questions, func(resp tools.QuestionResponse) {
-				e.ResponseCh <- resp.Answers
-			})
 
 		case agent.TurnComplete:
 			streamBuf = s.flushText(streamBuf)
@@ -802,6 +796,9 @@ func (s *Session) close() {
 	s.stopOnce.Do(func() {
 		close(s.done)
 		s.cancel()
+		// Teammate goroutines hang off this session's team manager; stop them
+		// so they cannot outlive an evicted or shut-down session.
+		s.teamMgr.CloseAll()
 	})
 }
 

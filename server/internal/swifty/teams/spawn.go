@@ -36,6 +36,7 @@ import (
 // Workdir: optional working directory override. When non-empty, the
 // member's Agent.WorkDir is pointed there. Used for worktree isolation
 // so concurrent teammates don't fight over files.
+// AgentType / Model: persistence metadata recorded in config.json.
 type TeammateSpawnConfig struct {
 	Team       *Team
 	MemberName string
@@ -46,7 +47,9 @@ type TeammateSpawnConfig struct {
 	Registry *tools.Registry
 	Protocol string
 
-	Workdir string
+	Workdir   string
+	AgentType string
+	Model     string
 
 	// Checker is the teammate's permission checker. When the Lead marks
 	// plan_mode_required during dispatch, this is a ModePlan checker — the
@@ -72,23 +75,5 @@ func SpawnTeammate(ctx context.Context, cfg TeammateSpawnConfig) (<-chan agent.A
 	// resolve and deliver by name.
 	GetNameRegistry().Register(cfg.MemberName, cfg.MemberName)
 
-	ch := StartInProcessMember(
-		ctx,
-		cfg.Team,
-		cfg.MemberName,
-		cfg.Client,
-		cfg.Registry,
-		cfg.Protocol,
-		cfg.Task,
-		cfg.Addendum,
-	)
-	// Workdir applies to the just-registered member's Agent so every file/Bash
-	// tool resolves relative to the isolated path.
-	if m, ok := cfg.Team.Members[cfg.MemberName]; ok && m.AgentRef != nil {
-		if cfg.Workdir != "" {
-			m.AgentRef.WorkDir = cfg.Workdir
-		}
-		m.AgentRef.Checker = cfg.Checker
-	}
-	return ch, nil
+	return StartInProcessMember(ctx, cfg), nil
 }

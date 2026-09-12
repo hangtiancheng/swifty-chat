@@ -110,7 +110,7 @@ func TestWaitForNextPromptOrShutdownShutdown(t *testing.T) {
 	dir := t.TempDir()
 	team := &Team{
 		Name:    "x",
-		Members: map[string]*Member{},
+		members: map[string]*Member{},
 		MailBox: NewFileMailBox(dir),
 	}
 
@@ -139,7 +139,7 @@ func TestWaitForNextPromptOrShutdownMessage(t *testing.T) {
 	dir := t.TempDir()
 	team := &Team{
 		Name:    "x",
-		Members: map[string]*Member{},
+		members: map[string]*Member{},
 		MailBox: NewFileMailBox(dir),
 	}
 
@@ -172,7 +172,7 @@ func TestWaitForNextPromptOrShutdownCancel(t *testing.T) {
 	dir := t.TempDir()
 	team := &Team{
 		Name:    "x",
-		Members: map[string]*Member{},
+		members: map[string]*Member{},
 		MailBox: NewFileMailBox(dir),
 	}
 
@@ -189,8 +189,8 @@ func TestDrainLeadMailbox(t *testing.T) {
 	// Build teams with explicit mailbox dirs so we don't pollute the
 	// repo root via teamsBaseDir().
 	mgr := NewTeamManager()
-	t1 := &Team{Name: "alpha", Members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
-	t2 := &Team{Name: "beta", Members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
+	t1 := &Team{Name: "alpha", members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
+	t2 := &Team{Name: "beta", members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
 	mgr.CreateTeamWith(t1)
 	mgr.CreateTeamWith(t2)
 

@@ -55,18 +55,6 @@ func sanitizeSlugSegment(s string) string {
 	return clean
 }
 
-type SubAgentProgress struct {
-	AgentDesc string
-	AgentType string
-	ToolName  string
-	ToolArgs  map[string]any
-	Elapsed   float64
-	IsError   bool
-	Done      bool
-	ToolCount int
-	TotalTime float64
-}
-
 const ForkBoilerplateTag = "<fork_boilerplate>"
 
 // ForkAgentType is the type name for fork sub-agents; it is embedded in
@@ -89,7 +77,6 @@ type AgentTool struct {
 	Registry      *tools.Registry
 	Protocol      string
 	TaskMgr       *TaskManager
-	ProgressCh    chan<- SubAgentProgress
 	Loader        *AgentLoader
 	Conversation  *conversation.Manager // parent conversation, needed for Fork
 	TeamMgr       *teams.TeamManager    // optional, enables team_name parameter
@@ -354,7 +341,6 @@ func (t *AgentTool) runSync(ctx context.Context, spec SubAgentSpec, description,
 
 	start := time.Now()
 	var output strings.Builder
-	toolCount := 0
 	ch := subAgent.Run(ctx, conv)
 
 	for ev := range ch {
@@ -366,25 +352,7 @@ func (t *AgentTool) runSync(ctx context.Context, spec SubAgentSpec, description,
 			// executeSingleTool unblocked instead of stalling on respCh forever. respCh has buffer=1, so
 			// this send is non-blocking.
 			e.ResponseCh <- agent.PermDeny
-		case agent.ToolResultEvent:
-			toolCount++
-			emitProgress(t.ProgressCh, ctx, SubAgentProgress{
-				AgentDesc: description,
-				AgentType: spec.Name,
-				ToolName:  e.ToolName,
-				ToolArgs:  map[string]any{"_summary": e.Output},
-				Elapsed:   e.Elapsed.Seconds(),
-				IsError:   e.IsError,
-			})
 		case agent.ErrorEvent:
-			emitProgress(t.ProgressCh, ctx, SubAgentProgress{
-				AgentDesc: description,
-				AgentType: spec.Name,
-				Done:      true,
-				ToolCount: toolCount,
-				TotalTime: time.Since(start).Seconds(),
-				IsError:   true,
-			})
 			return tools.ToolResult{
 				Output:  fmt.Sprintf("Agent failed: %s", e.Message),
 				IsError: true,
@@ -393,14 +361,6 @@ func (t *AgentTool) runSync(ctx context.Context, spec SubAgentSpec, description,
 	}
 
 	elapsed := time.Since(start)
-
-	emitProgress(t.ProgressCh, ctx, SubAgentProgress{
-		AgentDesc: description,
-		AgentType: spec.Name,
-		Done:      true,
-		ToolCount: toolCount,
-		TotalTime: elapsed.Seconds(),
-	})
 
 	result := output.String()
 	if result == "" {
@@ -495,23 +455,6 @@ func (t *AgentTool) runFork(ctx context.Context, description, prompt, modelOverr
 			"Forked agent \"%s\" launched in background (task %s). Results will arrive via task-notification.",
 			description, taskID,
 		),
-	}
-}
-
-// emitProgress sends a SubAgentProgress event without ever blocking the caller. If the consumer
-// (TUI) is behind, the event is dropped — progress is best-effort UI feedback, not load-bearing
-// state. Blocking sends here caused sub-agent loops to deadlock when ProgressCh's buffer filled up,
-// which in turn prevented ESC / ctx cancel from ever taking effect because the sub-agent was stuck
-// in this send rather than at a ctx-aware point.
-func emitProgress(ch chan<- SubAgentProgress, ctx context.Context, p SubAgentProgress) {
-	if ch == nil {
-		return
-	}
-	select {
-	case ch <- p:
-	case <-ctx.Done():
-	default:
-		// Consumer is behind. Drop the event rather than stalling the sub-agent's event loop.
 	}
 }
 
@@ -634,7 +577,7 @@ func (t *AgentTool) runAsTeammate(
 	if memberName == "" {
 		memberName = sanitizeSlugSegment(description)
 	}
-	if _, exists := team.Members[memberName]; exists {
+	if team.HasMember(memberName) {
 		return tools.ToolResult{
 			Output:  fmt.Sprintf("Error: team '%s' already has a member named '%s'", teamName, memberName),
 			IsError: true,
@@ -666,11 +609,7 @@ func (t *AgentTool) runAsTeammate(
 	subRegistry.Register(&teams.TaskUpdateTool{TeamMgr: t.TeamMgr, TeamName: teamName})
 	client := t.selectClient(spec.Model, modelOverride)
 
-	var otherMembers []string
-	for n := range team.Members {
-		otherMembers = append(otherMembers, n)
-	}
-	addendum := teams.BuildTeammateAddendum(teamName, memberName, otherMembers)
+	addendum := teams.BuildTeammateAddendum(teamName, memberName, team.MemberNames())
 
 	var workdir string
 	if isolation == "worktree" {
@@ -687,8 +626,6 @@ func (t *AgentTool) runAsTeammate(
 		notice := worktree.BuildWorktreeNotice(parentCwd, wtResult.WorktreePath)
 		prompt = notice + "\n\n" + prompt
 	}
-
-	team.SetMemberMeta(memberName, subagentType, modelOverride, workdir)
 
 	// A teammate marked plan_mode_required starts in plan mode: it can only read,
 	// not modify. It writes out a plan for the lead to approve, and only switches
@@ -709,6 +646,8 @@ func (t *AgentTool) runAsTeammate(
 		Registry:   subRegistry,
 		Protocol:   t.Protocol,
 		Workdir:    workdir,
+		AgentType:  subagentType,
+		Model:      modelOverride,
 	})
 	if err != nil {
 		return tools.ToolResult{
@@ -720,7 +659,7 @@ func (t *AgentTool) runAsTeammate(
 	// Drain the teammate's event channel in the background so the goroutine
 	// doesn't block on a full chan. Lead-visible progress flows through the
 	// mailbox, not this drain.
-	go drainTeammateEvents(memberName, eventCh, t.ProgressCh)
+	go drainTeammateEvents(eventCh)
 
 	hint := ""
 	if workdir != "" {
@@ -735,30 +674,9 @@ func (t *AgentTool) runAsTeammate(
 }
 
 // drainTeammateEvents consumes a teammate's event stream so the producer side never blocks on a
-// full channel. Tool/error events are forwarded to ProgressCh when set so the parent UI can show
-// activity.
-func drainTeammateEvents(name string, ch <-chan agent.AgentEvent, progressCh chan<- SubAgentProgress) {
-	for ev := range ch {
-		if progressCh == nil {
-			continue
-		}
-		switch e := ev.(type) {
-		case agent.ToolResultEvent:
-			emitProgress(progressCh, context.Background(), SubAgentProgress{
-				AgentDesc: name,
-				AgentType: "teammate",
-				ToolName:  e.ToolName,
-				Elapsed:   e.Elapsed.Seconds(),
-				IsError:   e.IsError,
-			})
-		case agent.ErrorEvent:
-			emitProgress(progressCh, context.Background(), SubAgentProgress{
-				AgentDesc: name,
-				AgentType: "teammate",
-				ToolName:  "error",
-				IsError:   true,
-			})
-		}
+// full channel. Lead-visible progress flows through the mailbox, not this drain.
+func drainTeammateEvents(ch <-chan agent.AgentEvent) {
+	for range ch {
 	}
 }
 

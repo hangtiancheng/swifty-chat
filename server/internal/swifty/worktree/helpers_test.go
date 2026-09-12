@@ -18,31 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package commands
+package worktree
 
-// SandboxMode defines three sandbox operating modes
-type SandboxMode int
-
-const (
-	SandboxAutoAllow SandboxMode = iota // Sandbox + auto-allow (recommended)
-	SandboxRegular                      // Sandbox + regular permission confirmation
-	SandboxOff                          // Disable sandbox
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
 )
 
-// SandboxModeLabels returns display labels for the three modes
-func SandboxModeLabels() []string {
-	return []string{
-		"Enable Sandbox + Auto-Allow (Recommended)",
-		"Enable Sandbox + Regular Permissions",
-		"Disable Sandbox",
+// initTestRepo initializes a git repository with one commit in dir.
+func initTestRepo(t *testing.T, dir string) {
+	t.Helper()
+	cmds := [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
 	}
-}
-
-// SandboxModeDescriptions returns explanatory text for each mode
-func SandboxModeDescriptions() []string {
-	return []string{
-		"Commands execute inside a sandbox automatically, no confirmation needed. Explicit deny rules still apply.",
-		"Commands execute inside a sandbox, but still require permission confirmation.",
-		"No OS-level isolation; relies solely on application-layer permissions.",
+	for _, c := range cmds {
+		cmd := exec.Command(c[0], c[1:]...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%v failed: %s", c, out)
+		}
 	}
+	// Create initial commit
+	f := filepath.Join(dir, "init.txt")
+	os.WriteFile(f, []byte("init"), 0o644)
+	cmd := exec.Command("git", "add", ".")
+	cmd.Dir = dir
+	cmd.CombinedOutput()
+	cmd = exec.Command("git", "commit", "-m", "init")
+	cmd.Dir = dir
+	cmd.CombinedOutput()
 }

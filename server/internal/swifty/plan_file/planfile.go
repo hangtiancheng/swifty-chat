@@ -24,12 +24,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
 const PlansDir = ".swifty/plans"
 
-var currentPlanPath string
+// planPaths caches the active plan file per workDir. The chat server hosts
+// many sessions in one process, so a single global path would leak session
+// A's plan into session B.
+var planPaths = struct {
+	sync.Mutex
+	m map[string]string
+}{m: make(map[string]string)}
 
 func plansDir(workDir string) string {
 	return filepath.Join(workDir, PlansDir)
@@ -53,54 +60,26 @@ func generateSlug() string {
 }
 
 func GetOrCreatePlanPath(workDir string) string {
-	if currentPlanPath != "" {
-		return currentPlanPath
+	planPaths.Lock()
+	defer planPaths.Unlock()
+	if path, ok := planPaths.m[workDir]; ok {
+		return path
 	}
 	dir := plansDir(workDir)
 	os.MkdirAll(dir, 0o755)
 	slug := generateSlug()
-	currentPlanPath = filepath.Join(dir, slug+".md")
-	return currentPlanPath
-}
-
-func GetPlanFilePath(workDir string) string {
-	if currentPlanPath != "" {
-		return currentPlanPath
-	}
-	return GetOrCreatePlanPath(workDir)
-}
-
-func ResetPlanPath() {
-	currentPlanPath = ""
+	path := filepath.Join(dir, slug+".md")
+	planPaths.m[workDir] = path
+	return path
 }
 
 func PlanExists(workDir string) bool {
-	if currentPlanPath == "" {
+	planPaths.Lock()
+	path, ok := planPaths.m[workDir]
+	planPaths.Unlock()
+	if !ok {
 		return false
 	}
-	_, err := os.Stat(currentPlanPath)
+	_, err := os.Stat(path)
 	return err == nil
-}
-
-func LoadPlan(workDir string) (string, error) {
-	if currentPlanPath == "" {
-		return "", nil
-	}
-	data, err := os.ReadFile(currentPlanPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	return string(data), nil
-}
-
-func SavePlan(workDir, content string) error {
-	path := GetOrCreatePlanPath(workDir)
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(content), 0o644)
 }

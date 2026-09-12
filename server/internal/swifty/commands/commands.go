@@ -105,22 +105,6 @@ func (r *Registry) Register(cmd *Command) {
 	}
 }
 
-// HasConflict reports whether cmd's name or any of its aliases would collide
-// with something already in the registry. Dynamic loaders (e.g. user
-// commands from disk) should call this before Register to filter out
-// conflicting entries, since Register panics on collision.
-func (r *Registry) HasConflict(cmd *Command) bool {
-	if r.Find(cmd.Name) != nil {
-		return true
-	}
-	for _, alias := range cmd.Aliases {
-		if r.Find(alias) != nil {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *Registry) Find(name string) *Command {
 	if cmd, ok := r.commands[name]; ok {
 		return cmd
@@ -142,22 +126,6 @@ func (r *Registry) ListCommands() []*Command {
 		return cmds[i].Name < cmds[j].Name
 	})
 	return cmds
-}
-
-func (r *Registry) Complete(prefix string) []string {
-	var matches []string
-	for name, cmd := range r.commands {
-		if !cmd.Hidden && strings.HasPrefix(name, prefix) {
-			matches = append(matches, name)
-		}
-	}
-	for alias, canonical := range r.aliases {
-		if cmd := r.commands[canonical]; cmd != nil && !cmd.Hidden && strings.HasPrefix(alias, prefix) {
-			matches = append(matches, alias)
-		}
-	}
-	sort.Strings(matches)
-	return matches
 }
 
 func Parse(input string) (name string, args string) {
@@ -254,7 +222,10 @@ func CreateDefaultRegistry() *Registry {
 			input, output := ctx.TokenCount()
 			fmt.Fprintf(&sb, "  Tokens:    %d in / %d out\n", input, output)
 			fmt.Fprintf(&sb, "  Tools:     %d enabled\n", ctx.ToolCount())
-			memories := ctx.MemoryList()
+			var memories []string
+			if ctx.MemoryList != nil {
+				memories = ctx.MemoryList()
+			}
 			fmt.Fprintf(&sb, "  Memories:  %d entries\n", len(memories))
 			fmt.Fprintf(&sb, "  Model:     %s\n", ctx.Model)
 			fmt.Fprintf(&sb, "  Directory: %s\n", ctx.WorkDir)
@@ -268,6 +239,10 @@ func CreateDefaultRegistry() *Registry {
 		Type:        TypeLocal,
 		Handler: func(ctx *Context) string {
 			sub, subArgs := parseSubcommand(ctx.Args)
+
+			if ctx.MemoryList == nil || ctx.MemoryClear == nil {
+				return "Memory management not available."
+			}
 
 			switch sub {
 			case "", "list":

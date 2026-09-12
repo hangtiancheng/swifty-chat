@@ -29,8 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/config"
 	"github.com/hangtiancheng/swifty-chat/server/internal/constant"
@@ -158,7 +157,7 @@ func SearchUsers(ctx context.Context, ownerId, keyword string) (string, []Search
 	if keyword == "" {
 		return "keyword is required", nil, -2
 	}
-	pattern := primitive.Regex{Pattern: regexp.QuoteMeta(keyword), Options: "i"}
+	pattern := bson.Regex{Pattern: regexp.QuoteMeta(keyword), Options: "i"}
 	var users []model.UserInfo
 	err := dao.ActiveQuery(&users).
 		Where("uuid", "!=", ownerId).

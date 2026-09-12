@@ -123,7 +123,7 @@ func TestSendMessageToolRoutesToLead(t *testing.T) {
 	useTempHome(t)
 	tm := NewTeamManager()
 	team := tm.CreateTeam("demo")
-	team.AddMember("alice", nil, nil, "")
+	team.AddMember("alice", MemberInit{})
 
 	tool := &SendMessageTool{TeamMgr: tm, SenderName: "alice"}
 	res := tool.Execute(context.Background(), map[string]any{

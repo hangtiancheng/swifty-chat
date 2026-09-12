@@ -132,13 +132,13 @@ func TestAsyncWhitelistExpanded(t *testing.T) {
 	reg := makeRegistry(
 		"ReadFile", "WebSearch", "TodoWrite", "Grep", "WebFetch", "Glob",
 		"Bash", "EditFile", "WriteFile", "NotebookEdit", "Skill",
-		"SyntheticOutput", "ToolSearch", "EnterWorktree", "ExitWorktree",
+		"SyntheticOutput", "ToolSearch",
 	)
 	filtered := FilterToolsForAgent(reg, nil, nil, true)
 	for _, name := range []string{
 		"ReadFile", "WebSearch", "TodoWrite", "Grep", "WebFetch", "Glob",
 		"Bash", "EditFile", "WriteFile", "NotebookEdit", "Skill",
-		"SyntheticOutput", "ToolSearch", "EnterWorktree", "ExitWorktree",
+		"SyntheticOutput", "ToolSearch",
 	} {
 		if !hasToolNamed(filtered, name) {
 			t.Errorf("%s should be allowed for async agents", name)

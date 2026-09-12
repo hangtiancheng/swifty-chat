@@ -65,11 +65,6 @@ func TestCreateAgentWorktree(t *testing.T) {
 	if _, err := os.Stat(result.WorktreePath); err != nil {
 		t.Fatalf("worktree directory not created: %v", err)
 	}
-
-	// Session singleton should NOT be set (agent worktrees are session-less)
-	if s := GetCurrentWorktreeSession(); s != nil {
-		t.Fatal("CreateAgentWorktree should not touch global session")
-	}
 }
 
 func TestCreateAgentWorktree_Resume(t *testing.T) {

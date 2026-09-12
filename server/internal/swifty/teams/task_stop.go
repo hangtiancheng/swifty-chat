@@ -83,11 +83,10 @@ func (t *TaskStopTool) Execute(ctx context.Context, args map[string]any) tools.T
 		if team == nil {
 			continue
 		}
-		member, ok := team.Members[name]
-		if !ok {
+		if !team.HasMember(name) {
 			continue
 		}
-		if !member.Active {
+		if !team.IsMemberActive(name) {
 			return tools.ToolResult{
 				Output: fmt.Sprintf("Teammate '%s' in team '%s' is not running, nothing to stop", name, teamName),
 			}
@@ -113,9 +112,7 @@ func (t *TaskStopTool) knownMembers() string {
 		if team == nil {
 			continue
 		}
-		for memberName := range team.Members {
-			names = append(names, memberName)
-		}
+		names = append(names, team.MemberNames()...)
 	}
 	if len(names) == 0 {
 		return "(none)"

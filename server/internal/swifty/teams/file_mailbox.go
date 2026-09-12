@@ -123,6 +123,19 @@ func (mb *FileMailBox) MarkAllRead(agentID string) error {
 	})
 }
 
+// MarkRead marks the single message with the given timestamp as read, leaving
+// other unread messages for the next turn.
+func (mb *FileMailBox) MarkRead(agentID, timestamp string) error {
+	return mb.withLock(agentID, func(messages []FileMailMessage) ([]FileMailMessage, error) {
+		for i := range messages {
+			if messages[i].Timestamp == timestamp {
+				messages[i].Read = true
+			}
+		}
+		return messages, nil
+	})
+}
+
 // withLock acquires a file lock, reads the inbox, applies the mutation, and writes back.
 func (mb *FileMailBox) withLock(agentID string, fn func([]FileMailMessage) ([]FileMailMessage, error)) error {
 	mb.mu.Lock()

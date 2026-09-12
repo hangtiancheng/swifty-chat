@@ -113,12 +113,12 @@ func (t *Team) snapshot() *TeamFile {
 		Description: t.Description,
 		CreatedAt:   t.CreatedAt,
 		LeadAgentID: t.LeadAgentID,
-		Members:     make([]TeamMemberFile, 0, len(t.Members)),
+		Members:     make([]TeamMemberFile, 0, len(t.members)),
 	}
 	if tf.CreatedAt == 0 {
 		tf.CreatedAt = time.Now().Unix()
 	}
-	for _, m := range t.Members {
+	for _, m := range t.members {
 		active := m.Active
 		tf.Members = append(tf.Members, TeamMemberFile{
 			AgentID:      m.AgentID,

@@ -208,24 +208,10 @@ func copyFileContents(src, dst string) error {
 	return err
 }
 
-// WorktreeConfig holds worktree-related configuration. Populated from config.yaml or defaults.
+// worktreeConfig holds worktree-related configuration.
 var worktreeConfig = struct {
-	SymlinkDirectories   []string
-	StaleCleanupInterval int // seconds; 0 = disabled
-	StaleCutoffHours     int // hours; default 720 (30 days)
-}{
-	StaleCutoffHours: 720,
-}
-
-// GetStaleCutoffHours returns the configured cutoff in hours.
-func GetStaleCutoffHours() int {
-	return worktreeConfig.StaleCutoffHours
-}
-
-// GetStaleCleanupInterval returns the configured cleanup interval in seconds.
-func GetStaleCleanupInterval() int {
-	return worktreeConfig.StaleCleanupInterval
-}
+	SymlinkDirectories []string
+}{}
 
 // FindCanonicalGitRoot resolves through worktrees to find the main repo root. When called from
 // inside a worktree, follows the .git pointer to commondir.

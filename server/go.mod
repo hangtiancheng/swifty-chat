@@ -4,12 +4,12 @@ go 1.26.0
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.68.0
-	github.com/hangtiancheng/swifty.go/swifty_cache v0.0.4
-	github.com/hangtiancheng/swifty.go/swifty_http v0.0.4
-	github.com/hangtiancheng/swifty.go/swifty_orm v0.0.4
+	github.com/hangtiancheng/swifty.go/swifty_cache v0.0.5
+	github.com/hangtiancheng/swifty.go/swifty_http v0.0.5
+	github.com/hangtiancheng/swifty.go/swifty_orm v0.0.5
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/openai/openai-go v1.12.0
-	go.mongodb.org/mongo-driver v1.17.9
+	go.mongodb.org/mongo-driver/v2 v2.9.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -19,12 +19,10 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
-	github.com/montanaflynn/stats v0.12.2 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect

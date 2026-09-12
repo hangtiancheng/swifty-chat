@@ -72,8 +72,6 @@ var AsyncAgentAllowedTools = map[string]bool{
 	"LoadSkill":       true,
 	"SyntheticOutput": true,
 	"ToolSearch":      true,
-	"EnterWorktree":   true,
-	"ExitWorktree":    true,
 	// ToolSearch only reads schemas; actual invocation requires McpCall.
 	// Both must be allowed together, otherwise the sub-agent can see tools
 	// but cannot call them.

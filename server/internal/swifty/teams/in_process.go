@@ -25,8 +25,6 @@ import (
 	"strings"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/agent"
-	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/llm"
-	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/tools"
 )
 
 // StartInProcessMember registers a teammate on the team and launches its long-running main loop in
@@ -36,22 +34,27 @@ import (
 // The lifecycle of the goroutine is bound to ctx: the caller cancels ctx to stop the teammate. Each
 // pass through the loop calls RunInProcessTeammate, which handles waiting, agent execution, and
 // idle notification.
-func StartInProcessMember(
-	ctx context.Context,
-	team *Team,
-	memberName string,
-	client llm.Client,
-	registry *tools.Registry,
-	protocol string,
-	task string,
-	addendum string,
-) <-chan agent.AgentEvent {
-	member := team.AddMember(memberName, client, registry, protocol)
-	member.Progress = NewTeammateProgress(memberName, team.Name, randomVerb())
+//
+// All member configuration (agent client, permission checker, workdir,
+// metadata) is applied inside AddMember before the goroutine starts, so the
+// first turn already sees the final setup.
+func StartInProcessMember(ctx context.Context, cfg TeammateSpawnConfig) <-chan agent.AgentEvent {
+	team := cfg.Team
+	member := team.AddMember(cfg.MemberName, MemberInit{
+		Client:       cfg.Client,
+		Registry:     cfg.Registry,
+		Protocol:     cfg.Protocol,
+		Checker:      cfg.Checker,
+		AgentType:    cfg.AgentType,
+		Model:        cfg.Model,
+		WorktreePath: cfg.Workdir,
+	})
 
+	team.mu.Lock()
 	memberCtx, cancel := context.WithCancel(ctx)
 	member.Active = true
 	member.Cancel = cancel
+	team.mu.Unlock()
 
 	eventCh := make(chan agent.AgentEvent, 32)
 	go func() {
@@ -59,13 +62,13 @@ func StartInProcessMember(
 		defer func() {
 			// Persist conversation transcript when teammate exits, for debugging
 			if member.Conv != nil {
-				_, _ = SaveTranscript(team.Name, memberName, member.Conv)
+				_, _ = SaveTranscript(team.Name, cfg.MemberName, member.Conv)
 			}
 			team.mu.Lock()
 			member.Active = false
 			team.mu.Unlock()
 		}()
-		_ = RunInProcessTeammate(memberCtx, team, member, task, addendum, eventCh)
+		_ = RunInProcessTeammate(memberCtx, team, member, cfg.Task, cfg.Addendum, eventCh)
 	}()
 	return eventCh
 }
@@ -74,7 +77,11 @@ func StartInProcessMember(
 // conversation. It tells the model its identity, who else is on the team, and how to send messages.
 func BuildTeammateAddendum(teamName, memberName string, otherMembers []string) string {
 	var sb strings.Builder
-	sb.WriteString("You are a member of team \"" + teamName + "\". Your name is \"" + memberName + "\".\n\n")
+	sb.WriteString("You are a member of team \"")
+	sb.WriteString(teamName)
+	sb.WriteString("\". Your name is \"")
+	sb.WriteString(memberName)
+	sb.WriteString("\".\n\n")
 	sb.WriteString("The lead is reachable as \"" + LeadName + "\". Deliver your final result to the lead with SendMessage(to=\"" + LeadName + "\", content=...) — the idle notification alone only signals completion, it does not carry your output.\n")
 	if len(otherMembers) > 0 {
 		sb.WriteString("Other team members: " + strings.Join(otherMembers, ", ") + "\n")
@@ -97,7 +104,11 @@ func InjectPendingMessages(team *Team, memberName string) string {
 	var sb strings.Builder
 	sb.WriteString("You have new messages:\n\n")
 	for _, msg := range msgs {
-		sb.WriteString("From " + msg.From + ": " + msg.Text + "\n\n")
+		sb.WriteString("From ")
+		sb.WriteString(msg.From)
+		sb.WriteString(": ")
+		sb.WriteString(msg.Text)
+		sb.WriteString("\n\n")
 	}
 
 	_ = team.MailBox.MarkAllRead(memberName)

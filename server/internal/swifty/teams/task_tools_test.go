@@ -104,7 +104,7 @@ func TestTaskGetMissingIsError(t *testing.T) {
 func TestDeleteTeamUnregistersMembers(t *testing.T) {
 	mgr := newTestTeamManager(t)
 	team := mgr.CreateTeam("myteam")
-	team.Members["alice"] = &Member{Name: "alice"}
+	team.members["alice"] = &Member{Name: "alice"}
 	GetNameRegistry().Register("alice", "alice")
 
 	mgr.DeleteTeam("myteam")

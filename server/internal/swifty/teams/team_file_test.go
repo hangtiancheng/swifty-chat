@@ -31,8 +31,12 @@ func TestTeamFileRoundTrip(t *testing.T) {
 
 	tm := NewTeamManager()
 	team := tm.CreateTeamFull("Refactor Auth", "lead", "refactor the auth module")
-	team.AddMember("alice", nil, nil, "anthropic")
-	team.SetMemberMeta("alice", "worker", "claude-sonnet-4-6", "/tmp/wt/alice")
+	team.AddMember("alice", MemberInit{
+		Protocol:     "anthropic",
+		AgentType:    "worker",
+		Model:        "claude-sonnet-4-6",
+		WorktreePath: "/tmp/wt/alice",
+	})
 
 	// Use a fresh manager to simulate a teammate process or the next session.
 	fresh := NewTeamManager()
@@ -46,9 +50,9 @@ func TestTeamFileRoundTrip(t *testing.T) {
 	if got.Description != "refactor the auth module" {
 		t.Errorf("Description = %q, want 'refactor the auth module'", got.Description)
 	}
-	m, ok := got.Members["alice"]
-	if !ok {
-		t.Fatalf("member alice was not restored, current members: %v", got.Members)
+	m := got.GetMember("alice")
+	if m == nil {
+		t.Fatalf("member alice was not restored, current members: %v", got.MemberNames())
 	}
 	if m.AgentType != "worker" || m.Model != "claude-sonnet-4-6" || m.WorktreePath != "/tmp/wt/alice" {
 		t.Errorf("member metadata mismatch: %+v", m)

@@ -21,6 +21,8 @@
 package router
 
 import (
+	"time"
+
 	"github.com/hangtiancheng/swifty-chat/server/internal/config"
 	"github.com/hangtiancheng/swifty-chat/server/internal/handler"
 	"github.com/hangtiancheng/swifty-chat/server/internal/middleware"
@@ -38,11 +40,11 @@ func Setup() *swifty_http.Application {
 	app.Static("/static/avatars", conf.Static.AvatarPath)
 	app.Static("/static/files", conf.Static.FilePath)
 
-	app.Post("/login", handler.Login)
-	app.Post("/register", handler.Register)
+	app.Post("/login", middleware.Chain(middleware.RateLimit(10, time.Minute), handler.Login))
+	app.Post("/register", middleware.Chain(middleware.RateLimit(10, time.Minute), handler.Register))
 
 	user := app.Router("/user")
-	user.Post("/update-password", handler.UpdatePassword)
+	user.Post("/update-password", middleware.Chain(middleware.RateLimit(5, time.Minute), handler.UpdatePassword))
 	user.Post("/search-user", handler.SearchUser)
 	user.Post("/update-user-info", handler.UpdateUserInfo)
 	user.Post("/get-user-info-list", middleware.RequireAdmin(handler.GetUserInfoList))
@@ -112,7 +114,10 @@ func Setup() *swifty_http.Application {
 
 	app.Get("/wss", handler.WsLogin)
 	app.Get("/agent/ws", handler.AgentWs)
-	app.Get("/dashboard/ws", swifty_cache.DashboardHandler())
+	// The dashboard exposes every cache key and allows deletions, so it
+	// requires a valid admin token in the query string (browsers cannot set
+	// headers during a websocket handshake).
+	app.Get("/dashboard/ws", middleware.Chain(middleware.WsTokenAuth(), middleware.RequireAdmin(swifty_cache.DashboardHandler())))
 
 	return app
 }

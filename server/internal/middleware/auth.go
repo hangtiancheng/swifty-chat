@@ -64,6 +64,38 @@ func Auth() swifty_http.Middleware {
 	}
 }
 
+// Chain composes middlewares left to right into a single middleware, since
+// swifty_http routes accept exactly one handler.
+func Chain(ms ...swifty_http.Middleware) swifty_http.Middleware {
+	return func(ctx *swifty_http.Context, next func()) {
+		var run func(i int)
+		run = func(i int) {
+			if i == len(ms) {
+				next()
+				return
+			}
+			ms[i](ctx, func() { run(i + 1) })
+		}
+		run(0)
+	}
+}
+
+// WsTokenAuth validates the query-string token on websocket GET endpoints
+// (browsers cannot set headers during a handshake) and stores the identity so
+// downstream middleware such as RequireAdmin can use it.
+func WsTokenAuth() swifty_http.Middleware {
+	return func(ctx *swifty_http.Context, next func()) {
+		claims, err := util.ParseToken(ctx.Query("token"), config.Get().Auth.JwtSecret)
+		if err != nil {
+			ctx.Status = 200
+			ctx.JSON(swifty_http.H{"code": 401, "message": "invalid or expired token"})
+			return
+		}
+		ctx.State["uuid"] = claims.Uuid
+		next()
+	}
+}
+
 // RequireAdmin wraps a handler so only admins can invoke it. The admin flag
 // is read fresh from the user cache, so revoking admin takes effect without
 // re-issuing tokens.

@@ -21,7 +21,7 @@
 package handler
 
 import (
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/service"
 
@@ -31,7 +31,6 @@ import (
 func CreateGroup(ctx *swifty_http.Context, next func()) {
 	var req struct {
 		Name      string   `json:"name"`
-		OwnerId   string   `json:"owner_id"`
 		Avatar    string   `json:"avatar"`
 		Notice    string   `json:"notice"`
 		AddMode   int8     `json:"add_mode"`
@@ -41,7 +40,7 @@ func CreateGroup(ctx *swifty_http.Context, next func()) {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, data, ret := service.CreateGroup(ctx.Request.Context(), req.Name, req.OwnerId, req.Avatar, req.Notice, req.AddMode, req.MemberIds)
+	msg, data, ret := service.CreateGroup(ctx.Request.Context(), req.Name, tokenUUID(ctx), req.Avatar, req.Notice, req.AddMode, req.MemberIds)
 	JsonBack(ctx, msg, ret, data)
 }
 
@@ -64,26 +63,18 @@ func InviteGroupMembers(ctx *swifty_http.Context, next func()) {
 
 func SearchGroup(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		OwnerId string `json:"owner_id"`
 		Keyword string `json:"keyword"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, data, ret := service.SearchGroups(ctx.Request.Context(), req.OwnerId, req.Keyword)
+	msg, data, ret := service.SearchGroups(ctx.Request.Context(), tokenUUID(ctx), req.Keyword)
 	JsonBack(ctx, msg, ret, data)
 }
 
 func LoadMyGroup(ctx *swifty_http.Context, next func()) {
-	var req struct {
-		OwnerId string `json:"owner_id"`
-	}
-	if err := ctx.BindJSON(&req); err != nil {
-		JsonBack(ctx, "invalid request body", -1, nil)
-		return
-	}
-	msg, data, ret := service.LoadMyGroup(ctx.Request.Context(), req.OwnerId)
+	msg, data, ret := service.LoadMyGroup(ctx.Request.Context(), tokenUUID(ctx))
 	JsonBack(ctx, msg, ret, data)
 }
 
@@ -113,27 +104,25 @@ func CheckGroupAddMode(ctx *swifty_http.Context, next func()) {
 
 func EnterGroupDirectly(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		UserId  string `json:"user_id"`
 		GroupId string `json:"group_id"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, ret := service.EnterGroupDirectly(ctx.Request.Context(), req.UserId, req.GroupId)
+	msg, ret := service.EnterGroupDirectly(ctx.Request.Context(), tokenUUID(ctx), req.GroupId)
 	JsonBack(ctx, msg, ret, nil)
 }
 
 func LeaveGroup(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		UserId  string `json:"user_id"`
 		GroupId string `json:"group_id"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, ret := service.LeaveGroup(ctx.Request.Context(), req.UserId, req.GroupId)
+	msg, ret := service.LeaveGroup(ctx.Request.Context(), tokenUUID(ctx), req.GroupId)
 	JsonBack(ctx, msg, ret, nil)
 }
 
@@ -145,7 +134,7 @@ func DismissGroup(ctx *swifty_http.Context, next func()) {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, ret := service.DismissGroup(ctx.Request.Context(), req.GroupId)
+	msg, ret := service.DismissGroup(ctx.Request.Context(), tokenUUID(ctx), req.GroupId)
 	JsonBack(ctx, msg, ret, nil)
 }
 
@@ -178,7 +167,7 @@ func UpdateGroupInfo(ctx *swifty_http.Context, next func()) {
 		}
 		fields["add_mode"] = *req.AddMode
 	}
-	msg, ret := service.UpdateGroupInfo(ctx.Request.Context(), req.Uuid, fields)
+	msg, ret := service.UpdateGroupInfo(ctx.Request.Context(), tokenUUID(ctx), req.Uuid, fields)
 	JsonBack(ctx, msg, ret, nil)
 }
 
@@ -203,7 +192,7 @@ func RemoveGroupMembers(ctx *swifty_http.Context, next func()) {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, ret := service.RemoveGroupMembers(ctx.Request.Context(), req.GroupId, req.MemberIds)
+	msg, ret := service.RemoveGroupMembers(ctx.Request.Context(), tokenUUID(ctx), req.GroupId, req.MemberIds)
 	JsonBack(ctx, msg, ret, nil)
 }
 

@@ -46,3 +46,11 @@ func JsonStatus(ctx *swifty_http.Context, code int, message string) {
 	ctx.Status = 200
 	ctx.JSON(swifty_http.H{"code": code, "message": message})
 }
+
+// tokenUUID returns the authenticated user's uuid, placed into ctx.State by
+// the Auth middleware. Handlers must derive identity from the token, never
+// from request-body fields, which a caller can forge.
+func tokenUUID(ctx *swifty_http.Context) string {
+	uuid, _ := ctx.State["uuid"].(string)
+	return uuid
+}

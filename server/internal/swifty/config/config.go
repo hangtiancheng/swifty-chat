@@ -163,19 +163,11 @@ type MCPServerConfig struct {
 	Env       map[string]string `yaml:"env"`
 }
 
-// SandboxConfig controls the OS-level sandbox configuration.
-type SandboxConfig struct {
-	Enabled        bool `yaml:"enabled"`         // whether the sandbox is enabled
-	AutoAllow      bool `yaml:"auto_allow"`      // whether commands inside the sandbox are auto-approved
-	NetworkEnabled bool `yaml:"network_enabled"` // whether network access is permitted
-}
-
 type AppConfig struct {
 	Providers             []ProviderConfig  `yaml:"providers"`
 	PermissionMode        string            `yaml:"permission_mode"`
 	MCPServers            []MCPServerConfig `yaml:"mcp_servers"`
 	Hooks                 []hooks.Hook      `yaml:"hooks"`
-	Sandbox               SandboxConfig     `yaml:"sandbox"`
 	EnableCoordinatorMode bool              `yaml:"enable_coordinator_mode"`
 
 	// EnableFork controls whether fork is used when subagent_type is omitted.
@@ -225,10 +217,6 @@ func mergeConfig(base, override *AppConfig) *AppConfig {
 		}
 	}
 	base.Hooks = append(base.Hooks, override.Hooks...)
-	// Sandbox config: a later-loaded config overrides earlier ones.
-	if override.Sandbox.Enabled {
-		base.Sandbox = override.Sandbox
-	}
 	if override.EnableCoordinatorMode {
 		base.EnableCoordinatorMode = true
 	}

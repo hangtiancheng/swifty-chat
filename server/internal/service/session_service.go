@@ -27,7 +27,7 @@ import (
 	"sort"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/constant"
 	"github.com/hangtiancheng/swifty-chat/server/internal/dao"
@@ -273,8 +273,15 @@ func loadSessions(ctx context.Context, ownerId string) ([]model.Session, error) 
 
 func DeleteSession(ctx context.Context, ownerId, sessionId string) (string, int) {
 	var target model.Session
-	if err := dao.Engine.Model(&target).Where("uuid", sessionId).First(ctx, &target); err == nil && IsSwifty(target.ReceiveId) {
+	if err := dao.Engine.Model(&target).Where("uuid", sessionId).First(ctx, &target); err != nil {
+		log.Println(err)
+		return constant.SystemError, -1
+	}
+	if IsSwifty(target.ReceiveId) {
 		return "the Swifty session cannot be deleted", -2
+	}
+	if target.SendId != ownerId {
+		return "you can only delete your own sessions", -2
 	}
 	now := time.Now()
 	_, err := dao.Engine.Model(&model.Session{}).Where("uuid", sessionId).Update(ctx, bson.M{"deleted_at": now})

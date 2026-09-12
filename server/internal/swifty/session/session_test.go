@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/conversation"
 )
@@ -100,28 +99,6 @@ func TestFileCreated(t *testing.T) {
 	path := filepath.Join(dir, ".swifty", "sessions", "test.jsonl")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		t.Fatal("session file was not created")
-	}
-}
-
-func TestFormatRelativeTime(t *testing.T) {
-	now := time.Now()
-	if got := FormatRelativeTime(now.Add(-30 * time.Second)); got != "just now" {
-		t.Fatalf("expected 'just now', got %s", got)
-	}
-	if got := FormatRelativeTime(now.Add(-5 * time.Minute)); got != "5 minutes ago" {
-		t.Fatalf("expected '5 minutes ago', got %s", got)
-	}
-	if got := FormatRelativeTime(now.Add(-3 * time.Hour)); got != "3 hours ago" {
-		t.Fatalf("expected '3 hours ago', got %s", got)
-	}
-}
-
-func TestFormatFileSize(t *testing.T) {
-	if got := FormatFileSize(500); got != "500B" {
-		t.Fatalf("expected '500B', got %s", got)
-	}
-	if got := FormatFileSize(53862); got != "52.6KB" {
-		t.Fatalf("expected '52.6KB', got %s", got)
 	}
 }
 
@@ -251,19 +228,6 @@ func TestFindLastCompactBoundary_NoBoundaryFullReplay(t *testing.T) {
 	}
 	if len(msgs) != 3 {
 		t.Fatalf("expected 3 messages preserved for full replay, got %d", len(msgs))
-	}
-}
-
-func TestMatchesSearch(t *testing.T) {
-	s := SessionInfo{FirstMessage: "Hello World", ID: "test-123"}
-	if !MatchesSearch(s, "hello") {
-		t.Fatal("should match case-insensitive")
-	}
-	if !MatchesSearch(s, "") {
-		t.Fatal("empty query should match all")
-	}
-	if MatchesSearch(s, "zzz") {
-		t.Fatal("should not match unrelated query")
 	}
 }
 

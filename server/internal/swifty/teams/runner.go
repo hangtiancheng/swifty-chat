@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/agent"
-	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/conversation"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/permissions"
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/plan_file"
 )
@@ -98,15 +97,6 @@ func RunInProcessTeammate(
 
 		ch := member.AgentRef.Run(ctx, member.Conv)
 		for ev := range ch {
-			// Update progress tracking
-			if member.Progress != nil {
-				switch e := ev.(type) {
-				case agent.ToolUseEvent:
-					member.Progress.RecordToolUse(e.ToolName, e.Args)
-				case agent.UsageEvent:
-					member.Progress.RecordTokens(int64(e.InputTokens), int64(e.OutputTokens))
-				}
-			}
 			if eventOut != nil {
 				select {
 				case eventOut <- ev:
@@ -116,14 +106,6 @@ func RunInProcessTeammate(
 			}
 			if e, ok := ev.(agent.ErrorEvent); ok && e.Message != "" {
 				idleReason = "failed"
-			}
-		}
-
-		if member.Progress != nil {
-			if idleReason == "failed" {
-				member.Progress.SetStatus("failed")
-			} else {
-				member.Progress.SetStatus("idle")
 			}
 		}
 
@@ -198,9 +180,6 @@ func requestPlanApproval(ctx context.Context, team *Team, member *Member) (bool,
 	if err := team.MailBox.Send(LeadName, req); err != nil {
 		return false, "", err
 	}
-	if member.Progress != nil {
-		member.Progress.SetStatus("awaiting plan approval")
-	}
 
 	for {
 		select {
@@ -217,7 +196,7 @@ func requestPlanApproval(ctx context.Context, team *Team, member *Member) (bool,
 			// Only accept the response matching this request; leave other
 			// messages for the next turn.
 			if m.Type == MsgPlanApprovalResponse && m.RequestID == req.RequestID {
-				_ = team.MailBox.MarkAllRead(member.Name)
+				_ = team.MailBox.MarkRead(member.Name, m.Timestamp)
 				return m.Approved(), m.Text, nil
 			}
 		}
@@ -308,8 +287,7 @@ func DrainLeadMailbox(mgr *TeamManager) []string {
 }
 
 // formatInboundAsPrompt turns an unread batch into a single user prompt. Each message is tagged
-// with its sender so the teammate can route a reply. Matches formatAsTeammateMessage in ,
-// simplified to plain text instead of XML.
+// with its sender so the teammate can route a reply.
 func formatInboundAsPrompt(msgs []FileMailMessage) string {
 	if len(msgs) == 0 {
 		return ""
@@ -321,7 +299,3 @@ func formatInboundAsPrompt(msgs []FileMailMessage) string {
 	}
 	return sb.String()
 }
-
-// _ silences the unused-import warning when conversation is referenced only via Member.Conv
-// methods.
-var _ = conversation.NewManager

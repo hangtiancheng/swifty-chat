@@ -28,8 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/constant"
 	"github.com/hangtiancheng/swifty-chat/server/internal/dao"
@@ -363,7 +362,7 @@ func SearchGroups(ctx context.Context, ownerId, keyword string) (string, []Searc
 	if keyword == "" {
 		return "keyword is required", nil, -2
 	}
-	pattern := primitive.Regex{Pattern: regexp.QuoteMeta(keyword), Options: "i"}
+	pattern := bson.Regex{Pattern: regexp.QuoteMeta(keyword), Options: "i"}
 	var groups []model.GroupInfo
 	err := dao.ActiveQuery(&groups).
 		Where("status", constant.GroupStatusNormal).
@@ -448,11 +447,14 @@ func cascadeGroupRemoval(ctx context.Context, e *swifty_orm.Engine, groupId stri
 	return nil
 }
 
-func DismissGroup(ctx context.Context, groupId string) (string, int) {
+func DismissGroup(ctx context.Context, userId, groupId string) (string, int) {
 	var group model.GroupInfo
 	if err := dao.ActiveQuery(&group).Where("uuid", groupId).First(ctx, &group); err != nil {
 		log.Println(err)
 		return constant.SystemError, -1
+	}
+	if group.OwnerId != userId {
+		return "only the group owner can dismiss the group", -2
 	}
 	err := dao.WithTransaction(ctx, func(sc context.Context, e *swifty_orm.Engine) error {
 		if _, err := e.Model(&model.GroupInfo{}).Where("uuid", groupId).Update(sc, bson.M{
@@ -471,9 +473,17 @@ func DismissGroup(ctx context.Context, groupId string) (string, int) {
 	return "group dismissed", 0
 }
 
-func UpdateGroupInfo(ctx context.Context, uuid string, fields bson.M) (string, int) {
+func UpdateGroupInfo(ctx context.Context, userId, uuid string, fields bson.M) (string, int) {
 	if len(fields) == 0 {
 		return "group info updated", 0
+	}
+	var group model.GroupInfo
+	if err := dao.ActiveQuery(&group).Where("uuid", uuid).First(ctx, &group); err != nil {
+		log.Println(err)
+		return constant.SystemError, -1
+	}
+	if group.OwnerId != userId {
+		return "only the group owner can update the group info", -2
 	}
 	fields["updated_at"] = time.Now()
 	_, err := dao.Engine.Model(&model.GroupInfo{}).Where("uuid", uuid).Update(ctx, fields)
@@ -577,12 +587,15 @@ func GetGroupMemberList(ctx context.Context, groupId string) (string, []GroupMem
 	return "success", list, 0
 }
 
-func RemoveGroupMembers(ctx context.Context, groupId string, memberIds []string) (string, int) {
+func RemoveGroupMembers(ctx context.Context, userId, groupId string, memberIds []string) (string, int) {
 	var group model.GroupInfo
 	err := dao.ActiveQuery(&group).Where("uuid", groupId).First(ctx, &group)
 	if err != nil {
 		log.Println(err)
 		return constant.SystemError, -1
+	}
+	if group.OwnerId != userId {
+		return "only the group owner can remove members", -2
 	}
 	if slices.Contains(memberIds, group.OwnerId) {
 		return "cannot remove the group owner", -2

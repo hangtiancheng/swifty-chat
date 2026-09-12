@@ -116,7 +116,7 @@ func TestTaskStopStopsTeammate(t *testing.T) {
 	useTempHome(t)
 	mgr := NewTeamManager()
 	team := mgr.CreateTeam("squad")
-	member := team.AddMember("scout", nil, nil, "anthropic")
+	member := team.AddMember("scout", MemberInit{Protocol: "anthropic"})
 	member.Active = true
 	stopped := false
 	member.Cancel = func() { stopped = true }
@@ -152,7 +152,7 @@ func TestTaskStopOnIdleTeammate(t *testing.T) {
 	useTempHome(t)
 	mgr := NewTeamManager()
 	team := mgr.CreateTeam("squad")
-	team.AddMember("scout", nil, nil, "anthropic")
+	team.AddMember("scout", MemberInit{Protocol: "anthropic"})
 
 	tool := &TaskStopTool{TeamMgr: mgr}
 	res := tool.Execute(context.Background(), map[string]any{"teammate": "scout"})

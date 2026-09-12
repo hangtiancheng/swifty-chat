@@ -78,10 +78,3 @@ func (CompactEvent) agentEvent() {}
 
 func (RetryEvent) agentEvent()             {}
 func (PermissionRequestEvent) agentEvent() {}
-
-type AskUserQuestionEvent struct {
-	Questions  []map[string]any
-	ResponseCh chan map[string]string
-}
-
-func (AskUserQuestionEvent) agentEvent() {}

@@ -28,76 +28,58 @@ import (
 
 func OpenSession(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		SendId    string `json:"send_id"`
 		ReceiveId string `json:"receive_id"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, sessionId, ret := service.OpenSession(ctx.Request.Context(), req.SendId, req.ReceiveId)
+	msg, sessionId, ret := service.OpenSession(ctx.Request.Context(), tokenUUID(ctx), req.ReceiveId)
 	JsonBack(ctx, msg, ret, sessionId)
 }
 
 func GetUserSessionList(ctx *swifty_http.Context, next func()) {
-	var req struct {
-		OwnerId string `json:"owner_id"`
-	}
-	if err := ctx.BindJSON(&req); err != nil {
-		JsonBack(ctx, "invalid request body", -1, nil)
-		return
-	}
-	msg, data, ret := service.GetUserSessionList(ctx.Request.Context(), req.OwnerId)
+	msg, data, ret := service.GetUserSessionList(ctx.Request.Context(), tokenUUID(ctx))
 	JsonBack(ctx, msg, ret, data)
 }
 
 func GetGroupSessionList(ctx *swifty_http.Context, next func()) {
-	var req struct {
-		OwnerId string `json:"owner_id"`
-	}
-	if err := ctx.BindJSON(&req); err != nil {
-		JsonBack(ctx, "invalid request body", -1, nil)
-		return
-	}
-	msg, data, ret := service.GetGroupSessionList(ctx.Request.Context(), req.OwnerId)
+	msg, data, ret := service.GetGroupSessionList(ctx.Request.Context(), tokenUUID(ctx))
 	JsonBack(ctx, msg, ret, data)
 }
 
 func DeleteSession(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		OwnerId   string `json:"owner_id"`
 		SessionId string `json:"session_id"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, ret := service.DeleteSession(ctx.Request.Context(), req.OwnerId, req.SessionId)
+	msg, ret := service.DeleteSession(ctx.Request.Context(), tokenUUID(ctx), req.SessionId)
 	JsonBack(ctx, msg, ret, nil)
 }
 
 func CheckOpenSessionAllowed(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		SendId    string `json:"send_id"`
 		ReceiveId string `json:"receive_id"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, allowed, ret := service.CheckOpenSessionAllowed(ctx.Request.Context(), req.SendId, req.ReceiveId)
+	msg, allowed, ret := service.CheckOpenSessionAllowed(ctx.Request.Context(), tokenUUID(ctx), req.ReceiveId)
 	JsonBack(ctx, msg, ret, allowed)
 }
 
 func MarkSessionRead(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		OwnerId   string `json:"owner_id"`
 		ReceiveId string `json:"receive_id"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, ret := service.MarkSessionRead(ctx.Request.Context(), req.OwnerId, req.ReceiveId)
+	msg, ret := service.MarkSessionRead(ctx.Request.Context(), tokenUUID(ctx), req.ReceiveId)
 	JsonBack(ctx, msg, ret, nil)
 }

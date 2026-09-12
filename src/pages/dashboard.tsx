@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import { wsUrl } from "@/env";
 import { useWindowedRows } from "@/lib/use-windowed-rows";
+import useAuthStore from "@/store/auth";
 import useDashboardStore, {
   type DashboardStatus,
   type GroupSnapshot,
@@ -45,7 +46,13 @@ import useDashboardStore, {
 import { formatExpire, formatSize } from "@/utils/format";
 
 const ROW_HEIGHT = 36;
-const DASHBOARD_WS = `${wsUrl}/dashboard/ws`;
+
+// The dashboard websocket requires an admin token; browsers cannot set
+// headers during a handshake, so it rides in the query string.
+function dashboardWsUrl(): string {
+  const token = useAuthStore.getState().token ?? "";
+  return `${wsUrl}/dashboard/ws?token=${encodeURIComponent(token)}`;
+}
 
 interface FlatRow {
   group: string;
@@ -104,7 +111,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const store = useDashboardStore.getState();
-    store.connect(DASHBOARD_WS);
+    store.connect(dashboardWsUrl());
     return () => store.disconnect();
   }, []);
 
@@ -129,7 +136,7 @@ export default function Dashboard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => useDashboardStore.getState().connect(DASHBOARD_WS)}
+            onClick={() => useDashboardStore.getState().connect(dashboardWsUrl())}
           >
             Reconnect
           </Button>

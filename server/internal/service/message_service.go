@@ -23,12 +23,13 @@ package service
 import (
 	"context"
 	"log"
+	"slices"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/constant"
 	"github.com/hangtiancheng/swifty-chat/server/internal/dao"
 	"github.com/hangtiancheng/swifty-chat/server/internal/model"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type MessageListItem struct {
@@ -77,7 +78,16 @@ func GetMessageList(ctx context.Context, sendId, receiveId string) (string, []Me
 	return "success", list, 0
 }
 
-func GetGroupMessageList(ctx context.Context, groupId string) (string, []MessageListItem, int) {
+func GetGroupMessageList(ctx context.Context, userId, groupId string) (string, []MessageListItem, int) {
+	// Only group members may read the group's history.
+	var group model.GroupInfo
+	if err := dao.ActiveQuery(&group).Where("uuid", groupId).First(ctx, &group); err != nil {
+		log.Println(err)
+		return constant.SystemError, nil, -1
+	}
+	if !slices.Contains(group.Members, userId) {
+		return "you are not a member of this group", nil, -2
+	}
 	var messages []model.Message
 	err := dao.Engine.Model(&messages).
 		Where("receive_id", groupId).

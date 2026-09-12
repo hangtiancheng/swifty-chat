@@ -179,6 +179,17 @@ func (s *Session) handleUICommand(name, args string) {
 	s.emit(Event{Type: "command_done"})
 }
 
+// knownSessionID reports whether id is one of the sessions ListSessions
+// returned for this workspace.
+func knownSessionID(sessions []swifty_session.SessionInfo, id string) bool {
+	for _, sess := range sessions {
+		if sess.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // resumeSession points the agent's context at an earlier transcript. The chat
 // thread on screen is not rewritten: what changes is only what Swifty
 // remembers, which is why the confirmation says so explicitly.
@@ -211,6 +222,14 @@ func (s *Session) resumeSession(args string) {
 	var idx int
 	if n, _ := fmt.Sscanf(targetID, "%d", &idx); n == 1 && idx >= 1 && idx <= len(sessions) {
 		targetID = sessions[idx-1].ID
+	} else if !knownSessionID(sessions, targetID) {
+		// Only IDs that ListSessions actually returned may be loaded; a
+		// client-supplied string could otherwise contain path traversal and
+		// reach transcripts outside this workspace.
+		s.emit(Event{Type: "error", Data: map[string]string{
+			"message": fmt.Sprintf("Context '%s' not found. Use /resume to list available contexts.", targetID),
+		}})
+		return
 	}
 
 	count, compacted := s.loadSessionContext(targetID)
@@ -242,6 +261,17 @@ func (s *Session) buildCommandContext(args string) *commands.Context {
 		},
 		ToolCount:   func() int { return len(s.registry.ListTools()) },
 		SessionInfo: func() string { return fmt.Sprintf("Context: %s\nWorkspace: %s", s.sessionID, s.workDir) },
+		MemoryList: func() []string {
+			if s.memoryMgr == nil {
+				return nil
+			}
+			return s.memoryMgr.GetMemories()
+		},
+		MemoryClear: func() {
+			if s.memoryMgr != nil {
+				s.memoryMgr.Clear()
+			}
+		},
 		SkillList: func() []commands.SkillInfo {
 			s.cmdMu.RLock()
 			defer s.cmdMu.RUnlock()

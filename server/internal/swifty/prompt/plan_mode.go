@@ -82,10 +82,6 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
 const planModeSparseReminder = `Plan mode still active (see full instructions earlier in conversation). Read-only except plan file (%s). Follow 5-phase workflow. End turns with AskUserQuestion (for clarifications) or ExitPlanMode (for plan approval). Never ask about plan approval via text or AskUserQuestion.`
 
-const planModeExitReminder = `## Exited Plan Mode
-
-You have exited plan mode. You can now make edits, run tools, and take actions.%s`
-
 // planModeReentryReminder is injected when the user re-enters Plan Mode.
 // It informs the model that a prior plan file exists and editing can continue from it.
 const planModeReentryReminder = `You have re-entered plan mode. Your previous plan file is at %s. Review it and continue from where you left off. You can update, refine, or restart the plan as needed. Follow the same 5-phase workflow as before.`
@@ -119,12 +115,4 @@ func BuildPlanModeReentryReminder(planFilePath string, planExists bool) string {
 		return ""
 	}
 	return fmt.Sprintf(planModeReentryReminder, planFilePath)
-}
-
-func BuildPlanModeExitReminder(planFilePath string, planExists bool) string {
-	extra := ""
-	if planExists {
-		extra = " The plan file is located at " + planFilePath + " if you need to reference it."
-	}
-	return fmt.Sprintf(planModeExitReminder, extra)
 }

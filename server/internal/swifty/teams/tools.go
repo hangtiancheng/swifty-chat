@@ -101,11 +101,11 @@ func (t *SendMessageTool) Execute(ctx context.Context, args map[string]any) tool
 			if team == nil {
 				continue
 			}
-			if _, ok := team.Members[t.SenderName]; !ok {
+			if !team.HasMember(t.SenderName) {
 				continue
 			}
 			count := 0
-			for member := range team.Members {
+			for _, member := range team.MemberNames() {
 				if member == t.SenderName {
 					continue
 				}
@@ -129,7 +129,7 @@ func (t *SendMessageTool) Execute(ctx context.Context, args map[string]any) tool
 			if team == nil {
 				continue
 			}
-			if _, ok := team.Members[t.SenderName]; ok {
+			if team.HasMember(t.SenderName) {
 				team.SendMessage(t.SenderName, LeadName, content)
 				return tools.ToolResult{
 					Output: fmt.Sprintf("Message sent to %s.", LeadName),
@@ -157,7 +157,7 @@ func (t *SendMessageTool) Execute(ctx context.Context, args map[string]any) tool
 		if team == nil {
 			continue
 		}
-		if _, ok := team.Members[recipient]; ok {
+		if team.HasMember(recipient) {
 			team.SendMessage(t.SenderName, recipient, content)
 			return tools.ToolResult{
 				Output: fmt.Sprintf("Message sent to %s.", to),
@@ -166,7 +166,7 @@ func (t *SendMessageTool) Execute(ctx context.Context, args map[string]any) tool
 		// Recipient not in Members but we belong to this team — write
 		// directly to the file mailbox so external-process peers pick
 		// it up on their next poll.
-		if _, ok := team.Members[t.SenderName]; ok {
+		if team.HasMember(t.SenderName) {
 			team.SendMessage(t.SenderName, recipient, content)
 			return tools.ToolResult{
 				Output: fmt.Sprintf("Message sent to %s.", to),
@@ -315,11 +315,8 @@ func (t *TeamDeleteTool) Execute(ctx context.Context, args map[string]any) tools
 		}
 	}
 
-	memberCount := len(team.Members)
-	var memberNames []string
-	for n := range team.Members {
-		memberNames = append(memberNames, n)
-	}
+	memberNames := team.MemberNames()
+	memberCount := len(memberNames)
 
 	t.TeamMgr.DeleteTeam(name)
 	return tools.ToolResult{
@@ -375,7 +372,7 @@ func (t *SendMessageTool) senderTeam() *Team {
 		if team == nil {
 			continue
 		}
-		if _, ok := team.Members[t.SenderName]; ok {
+		if team.HasMember(t.SenderName) {
 			return team
 		}
 	}

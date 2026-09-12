@@ -87,3 +87,9 @@ func RemoveAgentWorktree(ctx context.Context, worktreePath, worktreeBranch, gitR
 	}
 	return true
 }
+
+type worktreeError struct {
+	msg string
+}
+
+func (e *worktreeError) Error() string { return e.msg }

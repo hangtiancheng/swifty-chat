@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/constant"
 	"github.com/hangtiancheng/swifty-chat/server/internal/dao"
@@ -257,16 +257,38 @@ func GetContactInfo(ctx context.Context, userId, contactId string) (string, *Con
 		log.Println(err)
 		return constant.SystemError, nil, -1
 	}
+	// Phone and email are PII: only the account owner sees them in full.
+	phone, email := user.Telephone, user.Email
+	if userId != user.Uuid {
+		phone, email = maskPhone(phone), maskEmail(email)
+	}
 	return "success", &ContactInfoResponse{
 		ContactId:        user.Uuid,
 		ContactName:      user.Nickname,
 		ContactAvatar:    user.Avatar,
-		ContactPhone:     user.Telephone,
-		ContactEmail:     user.Email,
+		ContactPhone:     phone,
+		ContactEmail:     email,
 		ContactGender:    user.Gender,
 		ContactSignature: user.Signature,
 		ContactBirthday:  user.Birthday,
 	}, 0
+}
+
+// maskPhone keeps the first 3 and last 4 digits, e.g. 138****1234.
+func maskPhone(phone string) string {
+	if len(phone) < 7 {
+		return strings.Repeat("*", len(phone))
+	}
+	return phone[:3] + strings.Repeat("*", len(phone)-7) + phone[len(phone)-4:]
+}
+
+// maskEmail keeps the first character of the local part and the domain.
+func maskEmail(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at <= 1 {
+		return email
+	}
+	return email[:1] + strings.Repeat("*", at-1) + email[at:]
 }
 
 func ApplyContact(ctx context.Context, userId, contactId string, contactType int8, message string) (string, int) {
@@ -420,9 +442,23 @@ func ensureUserContact(ctx context.Context, e *swifty_orm.Engine, userId, contac
 	return err
 }
 
+// canHandleApply reports whether userId is the intended recipient of the
+// application: for friend applies the recipient is the target user; for group
+// applies it is the group owner.
+func canHandleApply(ctx context.Context, apply *model.ContactApply, userId string) bool {
+	if apply.ContactType == constant.ContactTypeGroup {
+		var group model.GroupInfo
+		if err := dao.ActiveQuery(&group).Where("uuid", apply.ContactId).First(ctx, &group); err != nil {
+			return false
+		}
+		return group.OwnerId == userId
+	}
+	return apply.ContactId == userId
+}
+
 // PassContactApply approves an application. Friend applications create the
 // two-way contact pair; group applications add the applicant to the group.
-func PassContactApply(ctx context.Context, applyId string) (string, int) {
+func PassContactApply(ctx context.Context, userId, applyId string) (string, int) {
 	var apply model.ContactApply
 	err := dao.ActiveQuery(&apply).Where("uuid", applyId).First(ctx, &apply)
 	if err != nil {
@@ -431,6 +467,9 @@ func PassContactApply(ctx context.Context, applyId string) (string, int) {
 	}
 	if apply.Status != constant.ApplyStatusApplying {
 		return "application already handled", -2
+	}
+	if !canHandleApply(ctx, &apply, userId) {
+		return "this application is not addressed to you", -2
 	}
 
 	err = dao.WithTransaction(ctx, func(sc context.Context, e *swifty_orm.Engine) error {
@@ -566,7 +605,15 @@ func DeleteContact(ctx context.Context, userId, contactId string) (string, int) 
 	return "deleted", 0
 }
 
-func RefuseContactApply(ctx context.Context, applyId string) (string, int) {
+func RefuseContactApply(ctx context.Context, userId, applyId string) (string, int) {
+	var apply model.ContactApply
+	if err := dao.ActiveQuery(&apply).Where("uuid", applyId).First(ctx, &apply); err != nil {
+		log.Println(err)
+		return constant.SystemError, -1
+	}
+	if !canHandleApply(ctx, &apply, userId) {
+		return "this application is not addressed to you", -2
+	}
 	_, err := dao.Engine.Model(&model.ContactApply{}).Where("uuid", applyId).Update(ctx, bson.M{"status": constant.ApplyStatusRefuse})
 	if err != nil {
 		log.Println(err)
@@ -575,7 +622,15 @@ func RefuseContactApply(ctx context.Context, applyId string) (string, int) {
 	return "application refused", 0
 }
 
-func BlackApply(ctx context.Context, applyId string) (string, int) {
+func BlackApply(ctx context.Context, userId, applyId string) (string, int) {
+	var apply model.ContactApply
+	if err := dao.ActiveQuery(&apply).Where("uuid", applyId).First(ctx, &apply); err != nil {
+		log.Println(err)
+		return constant.SystemError, -1
+	}
+	if !canHandleApply(ctx, &apply, userId) {
+		return "this application is not addressed to you", -2
+	}
 	_, err := dao.Engine.Model(&model.ContactApply{}).Where("uuid", applyId).Update(ctx, bson.M{"status": constant.ApplyStatusBlack})
 	if err != nil {
 		log.Println(err)

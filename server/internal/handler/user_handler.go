@@ -21,7 +21,7 @@
 package handler
 
 import (
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/service"
 
@@ -74,20 +74,18 @@ func UpdatePassword(ctx *swifty_http.Context, next func()) {
 
 func SearchUser(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		OwnerId string `json:"owner_id"`
 		Keyword string `json:"keyword"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		JsonBack(ctx, "invalid request body", -1, nil)
 		return
 	}
-	msg, data, ret := service.SearchUsers(ctx.Request.Context(), req.OwnerId, req.Keyword)
+	msg, data, ret := service.SearchUsers(ctx.Request.Context(), tokenUUID(ctx), req.Keyword)
 	JsonBack(ctx, msg, ret, data)
 }
 
 func UpdateUserInfo(ctx *swifty_http.Context, next func()) {
 	var req struct {
-		Uuid      string `json:"uuid"`
 		Nickname  string `json:"nickname"`
 		Email     string `json:"email"`
 		Birthday  string `json:"birthday"`
@@ -114,19 +112,12 @@ func UpdateUserInfo(ctx *swifty_http.Context, next func()) {
 	if req.Avatar != "" {
 		fields["avatar"] = req.Avatar
 	}
-	msg, ret := service.UpdateUserInfo(ctx.Request.Context(), req.Uuid, fields)
+	msg, ret := service.UpdateUserInfo(ctx.Request.Context(), tokenUUID(ctx), fields)
 	JsonBack(ctx, msg, ret, nil)
 }
 
 func GetUserInfo(ctx *swifty_http.Context, next func()) {
-	var req struct {
-		OwnerId string `json:"owner_id"`
-	}
-	if err := ctx.BindJSON(&req); err != nil {
-		JsonBack(ctx, "invalid request body", -1, nil)
-		return
-	}
-	msg, data, ret := service.GetUserInfo(ctx.Request.Context(), req.OwnerId)
+	msg, data, ret := service.GetUserInfo(ctx.Request.Context(), tokenUUID(ctx))
 	JsonBack(ctx, msg, ret, data)
 }
 
