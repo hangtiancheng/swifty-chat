@@ -264,7 +264,9 @@ func (s *Session) registerTools(client llm.Client, p *config.ProviderConfig, wd 
 	s.memoryMgr = memory.NewManager(wd)
 	loader := subagent.NewAgentLoader(wd)
 	loader.LoadAll()
-	s.teamMgr = teams.NewTeamManager()
+	// Teams live inside the session workspace so each chat user's team state
+	// (config.json, tasks.json, inboxes, transcripts) stays isolated.
+	s.teamMgr = teams.NewTeamManager(filepath.Join(wd, "teams"))
 
 	s.registry.Register(&tools.ExitPlanModeTool{
 		IsPlanMode: func() bool {

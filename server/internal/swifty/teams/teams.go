@@ -34,18 +34,6 @@ import (
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/tools"
 )
 
-// teamsBaseDir is the root directory for all team directories. It lives under
-// the user's home directory rather than the project directory so the team
-// configuration survives worktree switches and server restarts.
-func teamsBaseDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		wd, _ := os.Getwd()
-		home = wd
-	}
-	return filepath.Join(home, ".swifty", "teams")
-}
-
 type Member struct {
 	Name     string
 	AgentRef *agent.Agent
@@ -67,6 +55,11 @@ type Team struct {
 	Name    string
 	MailBox *FileMailBox
 
+	// baseDir is the teams storage root for this team's owner (one chat
+	// session = one workspace). Team state never crosses workspaces, so two
+	// users with same-named teams cannot overwrite each other's files.
+	baseDir string
+
 	// members is guarded by mu. Use the HasMember/GetMember/MemberNames
 	// accessors instead of touching the map directly.
 	members map[string]*Member
@@ -78,14 +71,20 @@ type Team struct {
 	CreatedAt   int64
 }
 
-func NewTeam(name string) *Team {
-	inboxDir := filepath.Join(teamDir(name), "inboxes")
+func NewTeam(baseDir, name string) *Team {
+	inboxDir := filepath.Join(baseDir, sanitizeTeamName(name), "inboxes")
 	return &Team{
 		Name:      name,
+		baseDir:   baseDir,
 		members:   make(map[string]*Member),
 		MailBox:   NewFileMailBox(inboxDir),
 		CreatedAt: time.Now().Unix(),
 	}
+}
+
+// dir returns this team's storage directory.
+func (t *Team) dir() string {
+	return filepath.Join(t.baseDir, sanitizeTeamName(t.Name))
 }
 
 // MemberInit carries everything AddMember needs to build a fully configured
@@ -185,19 +184,23 @@ func (t *Team) SendMessage(from, to, content string) {
 
 type TeamManager struct {
 	mu         sync.Mutex
+	baseDir    string
 	teams      map[string]*Team
 	taskStores map[string]*SharedTaskStore // one shared task store per team
 }
 
-func NewTeamManager() *TeamManager {
+// NewTeamManager creates a manager rooted at baseDir. The chat server passes
+// the session workspace so each user's teams live in their own directory.
+func NewTeamManager(baseDir string) *TeamManager {
 	return &TeamManager{
+		baseDir:    baseDir,
 		teams:      make(map[string]*Team),
 		taskStores: make(map[string]*SharedTaskStore),
 	}
 }
 
-func teamDir(name string) string {
-	return filepath.Join(teamsBaseDir(), sanitizeTeamName(name))
+func (tm *TeamManager) teamDir(name string) string {
+	return filepath.Join(tm.baseDir, sanitizeTeamName(name))
 }
 
 func (tm *TeamManager) CreateTeam(name string) *Team {
@@ -210,12 +213,12 @@ func (tm *TeamManager) CreateTeam(name string) *Team {
 func (tm *TeamManager) CreateTeamFull(name string, leadAgentID, description string) *Team {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
-	team := NewTeam(name)
+	team := NewTeam(tm.baseDir, name)
 	team.LeadAgentID = leadAgentID
 	team.Description = description
 	tm.teams[name] = team
 	// Initialize an empty shared task store for the new team.
-	store := NewSharedTaskStore(filepath.Join(teamDir(name), "tasks.json"))
+	store := NewSharedTaskStore(filepath.Join(tm.teamDir(name), "tasks.json"))
 	store.InitEmpty()
 	tm.taskStores[name] = store
 	team.persist()
@@ -230,7 +233,7 @@ func (tm *TeamManager) GetTaskStore(teamName string) *SharedTaskStore {
 	if store, ok := tm.taskStores[teamName]; ok {
 		return store
 	}
-	store := NewSharedTaskStore(filepath.Join(teamDir(teamName), "tasks.json"))
+	store := NewSharedTaskStore(filepath.Join(tm.teamDir(teamName), "tasks.json"))
 	tm.taskStores[teamName] = store
 	return store
 }
@@ -254,11 +257,11 @@ func (tm *TeamManager) GetTeam(name string) *Team {
 	if team, ok := tm.teams[name]; ok {
 		return team
 	}
-	tf, err := ReadTeamFile(name)
+	tf, err := ReadTeamFile(tm.baseDir, name)
 	if err != nil || tf == nil {
 		return nil
 	}
-	team := NewTeam(tf.Name)
+	team := NewTeam(tm.baseDir, tf.Name)
 	team.LeadAgentID = tf.LeadAgentID
 	team.Description = tf.Description
 	team.CreatedAt = tf.CreatedAt
@@ -297,7 +300,7 @@ func (tm *TeamManager) DeleteTeam(name string) {
 	// The team directory contains config.json, tasks.json, and inboxes; once
 	// the team is gone, remove them all to prevent a future same-named team
 	// from picking up stale data.
-	_ = os.RemoveAll(teamDir(name))
+	_ = os.RemoveAll(tm.teamDir(name))
 }
 
 func (tm *TeamManager) ListTeams() []string {
@@ -308,6 +311,21 @@ func (tm *TeamManager) ListTeams() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// HasActiveMembers reports whether any team has a running member. The chat
+// server uses this to keep an idle session alive while its teammates work.
+func (tm *TeamManager) HasActiveMembers() bool {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	for _, team := range tm.teams {
+		for _, memberName := range team.MemberNames() {
+			if team.IsMemberActive(memberName) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // CloseAll stops every member of every team. Session.close calls this so

@@ -70,15 +70,15 @@ func sanitizeTeamName(name string) string {
 	return strings.ToLower(nonAlnum.ReplaceAllString(name, "-"))
 }
 
-func teamFilePath(name string) string {
-	return filepath.Join(teamDir(name), "config.json")
+func teamFilePath(baseDir, name string) string {
+	return filepath.Join(baseDir, sanitizeTeamName(name), "config.json")
 }
 
 // ReadTeamFile reads team configuration. Returns (nil, nil) when the file does
 // not exist, allowing the caller to treat it as "no such team" rather than
 // propagating an error.
-func ReadTeamFile(name string) (*TeamFile, error) {
-	data, err := os.ReadFile(teamFilePath(name))
+func ReadTeamFile(baseDir, name string) (*TeamFile, error) {
+	data, err := os.ReadFile(teamFilePath(baseDir, name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -93,8 +93,8 @@ func ReadTeamFile(name string) (*TeamFile, error) {
 }
 
 // WriteTeamFile writes team configuration, creating the directory if needed.
-func WriteTeamFile(name string, tf *TeamFile) error {
-	dir := teamDir(name)
+func WriteTeamFile(baseDir, name string, tf *TeamFile) error {
+	dir := filepath.Dir(teamFilePath(baseDir, name))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func WriteTeamFile(name string, tf *TeamFile) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(teamFilePath(name), data, 0o644)
+	return os.WriteFile(teamFilePath(baseDir, name), data, 0o644)
 }
 
 // snapshot exports the in-memory Team into a persistable TeamFile.
@@ -138,5 +138,5 @@ func (t *Team) snapshot() *TeamFile {
 // persistence serves cross-process and cross-restart needs, not runtime
 // correctness. The caller must hold t.mu.
 func (t *Team) persist() {
-	_ = WriteTeamFile(t.Name, t.snapshot())
+	_ = WriteTeamFile(t.baseDir, t.Name, t.snapshot())
 }

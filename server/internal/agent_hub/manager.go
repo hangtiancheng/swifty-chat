@@ -214,7 +214,9 @@ func (m *Manager) sweepIdle() {
 			var evicted []*Session
 			for id, sess := range m.sessions {
 				streaming, _, _, _ := sess.snapshot()
-				if streaming || sess.hasConns() || sess.idleFor() < idleTimeout {
+				// Teammates keep running between the user's messages; evicting
+				// their session mid-task would kill them.
+				if streaming || sess.hasConns() || sess.teamMgr.HasActiveMembers() || sess.idleFor() < idleTimeout {
 					continue
 				}
 				delete(m.sessions, id)

@@ -93,8 +93,7 @@ func TestFileMailBoxConcurrentSends(t *testing.T) {
 func TestTeamManagerCRUD(t *testing.T) {
 	// Each test case uses an isolated teams directory to prevent messages from
 	// accumulating in the same inbox across runs.
-	useTempHome(t)
-	tm := NewTeamManager()
+	tm := NewTeamManager(t.TempDir())
 
 	team := tm.CreateTeam("alpha")
 	if team == nil {
@@ -120,8 +119,7 @@ func TestTeamManagerCRUD(t *testing.T) {
 func TestSendMessageToolRoutesToLead(t *testing.T) {
 	// Each test case uses an isolated teams directory to prevent messages from
 	// accumulating in the same inbox across runs.
-	useTempHome(t)
-	tm := NewTeamManager()
+	tm := NewTeamManager(t.TempDir())
 	team := tm.CreateTeam("demo")
 	team.AddMember("alice", MemberInit{})
 
@@ -155,8 +153,7 @@ func TestSendMessageToolRoutesToLead(t *testing.T) {
 func TestSendMessageToolUnknownSenderToLead(t *testing.T) {
 	// Each test case uses an isolated teams directory to prevent messages from
 	// accumulating in the same inbox across runs.
-	useTempHome(t)
-	tm := NewTeamManager()
+	tm := NewTeamManager(t.TempDir())
 	tm.CreateTeam("demo") // no members added
 
 	tool := &SendMessageTool{TeamMgr: tm, SenderName: "ghost"}

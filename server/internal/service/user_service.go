@@ -105,10 +105,15 @@ func Register(ctx context.Context, telephone, password, nickname string) (string
 		return "phone number already registered", nil, -2
 	}
 
+	hash, err := util.HashPassword(password)
+	if err != nil {
+		return "password must be at most 72 bytes", nil, -2
+	}
+
 	user := model.UserInfo{
 		Uuid:      "U" + util.GetNowAndLenRandomString(11),
 		Telephone: telephone,
-		Password:  util.HashPassword(password),
+		Password:  hash,
 		Nickname:  nickname,
 		Avatar:    "",
 		CreatedAt: time.Now(),
@@ -141,8 +146,12 @@ func UpdatePassword(ctx context.Context, telephone, password string) (string, in
 	if err := dao.ActiveQuery(&user).Where("telephone", telephone).First(ctx, &user); err != nil {
 		return "user not found", -2
 	}
+	hash, err := util.HashPassword(password)
+	if err != nil {
+		return "password must be at most 72 bytes", -2
+	}
 	if _, err := dao.Engine.Model(&model.UserInfo{}).Where("uuid", user.Uuid).
-		Update(ctx, bson.M{"password": util.HashPassword(password)}); err != nil {
+		Update(ctx, bson.M{"password": hash}); err != nil {
 		log.Println(err)
 		return constant.SystemError, -1
 	}

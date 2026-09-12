@@ -113,8 +113,7 @@ func TestCoordinatorDisabledReturnsNil(t *testing.T) {
 // coordinator mode the Lead dispatches teammates via the Agent tool with
 // team_name, and they do not exist in the background task board.
 func TestTaskStopStopsTeammate(t *testing.T) {
-	useTempHome(t)
-	mgr := NewTeamManager()
+	mgr := NewTeamManager(t.TempDir())
 	team := mgr.CreateTeam("squad")
 	member := team.AddMember("scout", MemberInit{Protocol: "anthropic"})
 	member.Active = true
@@ -135,8 +134,7 @@ func TestTaskStopStopsTeammate(t *testing.T) {
 }
 
 func TestTaskStopOnUnknownTeammate(t *testing.T) {
-	useTempHome(t)
-	mgr := NewTeamManager()
+	mgr := NewTeamManager(t.TempDir())
 	mgr.CreateTeam("squad")
 
 	tool := &TaskStopTool{TeamMgr: mgr}
@@ -149,8 +147,7 @@ func TestTaskStopOnUnknownTeammate(t *testing.T) {
 // Stopping an already-idle teammate should not error, to avoid the model
 // retrying endlessly on the error.
 func TestTaskStopOnIdleTeammate(t *testing.T) {
-	useTempHome(t)
-	mgr := NewTeamManager()
+	mgr := NewTeamManager(t.TempDir())
 	team := mgr.CreateTeam("squad")
 	team.AddMember("scout", MemberInit{Protocol: "anthropic"})
 

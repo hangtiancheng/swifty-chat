@@ -62,7 +62,7 @@ func StartInProcessMember(ctx context.Context, cfg TeammateSpawnConfig) <-chan a
 		defer func() {
 			// Persist conversation transcript when teammate exits, for debugging
 			if member.Conv != nil {
-				_, _ = SaveTranscript(team.Name, cfg.MemberName, member.Conv)
+				_, _ = SaveTranscript(team.baseDir, team.Name, cfg.MemberName, member.Conv)
 			}
 			team.mu.Lock()
 			member.Active = false

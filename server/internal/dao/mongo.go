@@ -23,6 +23,7 @@ package dao
 import (
 	"context"
 	"log"
+	"net/url"
 
 	"github.com/hangtiancheng/swifty-chat/server/internal/config"
 
@@ -38,7 +39,18 @@ func InitMongo() {
 	if err != nil {
 		log.Fatalf("failed to connect mongo: %v", err)
 	}
-	log.Printf("connected to mongodb: %s/%s", conf.Mongo.URI, conf.Mongo.Database)
+	log.Printf("connected to mongodb: %s/%s", redactURI(conf.Mongo.URI), conf.Mongo.Database)
+}
+
+// redactURI strips credentials from a connection string so they never reach
+// the logs.
+func redactURI(uri string) string {
+	u, err := url.Parse(uri)
+	if err != nil || u.User == nil {
+		return uri
+	}
+	u.User = nil
+	return u.String()
 }
 
 func CloseMongo() {

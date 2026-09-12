@@ -27,9 +27,8 @@ import (
 )
 
 func TestTeamFileRoundTrip(t *testing.T) {
-	useTempHome(t)
-
-	tm := NewTeamManager()
+	base := t.TempDir()
+	tm := NewTeamManager(base)
 	team := tm.CreateTeamFull("Refactor Auth", "lead", "refactor the auth module")
 	team.AddMember("alice", MemberInit{
 		Protocol:     "anthropic",
@@ -39,7 +38,7 @@ func TestTeamFileRoundTrip(t *testing.T) {
 	})
 
 	// Use a fresh manager to simulate a teammate process or the next session.
-	fresh := NewTeamManager()
+	fresh := NewTeamManager(base)
 	got := fresh.GetTeam("Refactor Auth")
 	if got == nil {
 		t.Fatal("expected team to be reconstructed from disk, got nil")
@@ -60,38 +59,35 @@ func TestTeamFileRoundTrip(t *testing.T) {
 }
 
 func TestTeamFilePathIsSanitized(t *testing.T) {
-	useTempHome(t)
-
-	tm := NewTeamManager()
+	base := t.TempDir()
+	tm := NewTeamManager(base)
 	tm.CreateTeamFull("Refactor Auth!", "lead", "")
 
-	want := filepath.Join(teamsBaseDir(), "refactor-auth-", "config.json")
+	want := filepath.Join(base, "refactor-auth-", "config.json")
 	if _, err := os.Stat(want); err != nil {
 		t.Fatalf("expected config at %s, stat failed: %v", want, err)
 	}
 }
 
 func TestDeleteTeamRemovesDir(t *testing.T) {
-	useTempHome(t)
-
-	tm := NewTeamManager()
+	base := t.TempDir()
+	tm := NewTeamManager(base)
 	tm.CreateTeamFull("gone", "lead", "")
-	if _, err := os.Stat(teamDir("gone")); err != nil {
+	if _, err := os.Stat(tm.teamDir("gone")); err != nil {
 		t.Fatalf("directory should exist after team creation: %v", err)
 	}
 
 	tm.DeleteTeam("gone")
-	if _, err := os.Stat(teamDir("gone")); !os.IsNotExist(err) {
+	if _, err := os.Stat(tm.teamDir("gone")); !os.IsNotExist(err) {
 		t.Errorf("directory should be removed after team deletion, err = %v", err)
 	}
-	if fresh := NewTeamManager().GetTeam("gone"); fresh != nil {
+	if fresh := NewTeamManager(base).GetTeam("gone"); fresh != nil {
 		t.Errorf("a deleted team should not be recoverable from disk")
 	}
 }
 
 func TestGetTeamMissingReturnsNil(t *testing.T) {
-	useTempHome(t)
-	if got := NewTeamManager().GetTeam("never-existed"); got != nil {
+	if got := NewTeamManager(t.TempDir()).GetTeam("never-existed"); got != nil {
 		t.Errorf("non-existent team should return nil, got %+v", got)
 	}
 }

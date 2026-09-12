@@ -21,30 +21,21 @@
 package util
 
 import (
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
-	"strings"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// HashPassword returns "salt$digest" where digest = sha256(salt + password).
-func HashPassword(password string) string {
-	saltBytes := make([]byte, 16)
-	_, _ = rand.Read(saltBytes)
-	salt := hex.EncodeToString(saltBytes)
-	return salt + "$" + hashWithSalt(salt, password)
-}
-
-func VerifyPassword(stored, password string) bool {
-	salt, digest, ok := strings.Cut(stored, "$")
-	if !ok {
-		return false
+// HashPassword hashes the password with bcrypt. The returned hash embeds its
+// own salt and cost, so no separate salt column is needed. bcrypt rejects
+// passwords longer than 72 bytes with an error.
+func HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
 	}
-	return hmac.Equal([]byte(digest), []byte(hashWithSalt(salt, password)))
+	return string(hash), nil
 }
 
-func hashWithSalt(salt, password string) string {
-	sum := sha256.Sum256([]byte(salt + password))
-	return hex.EncodeToString(sum[:])
+// VerifyPassword compares a plaintext password against a stored bcrypt hash.
+func VerifyPassword(stored, password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(stored), []byte(password)) == nil
 }

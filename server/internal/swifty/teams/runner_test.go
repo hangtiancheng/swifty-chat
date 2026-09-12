@@ -188,7 +188,7 @@ func TestWaitForNextPromptOrShutdownCancel(t *testing.T) {
 func TestDrainLeadMailbox(t *testing.T) {
 	// Build teams with explicit mailbox dirs so we don't pollute the
 	// repo root via teamsBaseDir().
-	mgr := NewTeamManager()
+	mgr := NewTeamManager(t.TempDir())
 	t1 := &Team{Name: "alpha", members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
 	t2 := &Team{Name: "beta", members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
 	mgr.CreateTeamWith(t1)
@@ -230,7 +230,7 @@ func TestSpawnTeammateValidation(t *testing.T) {
 	}
 
 	// Missing name
-	team := NewTeam("t")
+	team := NewTeam(t.TempDir(), "t")
 	if _, err := SpawnTeammate(ctx, TeammateSpawnConfig{Team: team}); err == nil {
 		t.Error("expected error when MemberName is empty")
 	}

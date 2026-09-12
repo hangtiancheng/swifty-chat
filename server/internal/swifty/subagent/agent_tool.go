@@ -577,7 +577,10 @@ func (t *AgentTool) runAsTeammate(
 	if memberName == "" {
 		memberName = sanitizeSlugSegment(description)
 	}
-	if team.HasMember(memberName) {
+	// A member restored from config.json after a restart carries no live
+	// agent (AgentRef == nil); spawning over it is the intended way to bring
+	// it back. Only a live member blocks the duplicate name.
+	if existing := team.GetMember(memberName); existing != nil && existing.AgentRef != nil {
 		return tools.ToolResult{
 			Output:  fmt.Sprintf("Error: team '%s' already has a member named '%s'", teamName, memberName),
 			IsError: true,

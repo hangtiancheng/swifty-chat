@@ -103,15 +103,10 @@ func deserializeConversation(entries []transcriptEntry) *conversation.Manager {
 	return conv
 }
 
-// transcriptDir returns the transcript storage directory for a team.
-func transcriptDir(teamName string) string {
-	return filepath.Join(teamsBaseDir(), teamName, "transcripts")
-}
-
 // SaveTranscript persists a teammate's conversation history to disk for debugging and troubleshooting.
-// File path is .swifty/teams/<team>/transcripts/<agentID>.json.
-func SaveTranscript(teamName, agentID string, conv *conversation.Manager) (string, error) {
-	dir := transcriptDir(teamName)
+// File path is <baseDir>/<team>/transcripts/<agentID>.json.
+func SaveTranscript(baseDir, teamName, agentID string, conv *conversation.Manager) (string, error) {
+	dir := filepath.Join(baseDir, sanitizeTeamName(teamName), "transcripts")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -121,19 +116,4 @@ func SaveTranscript(teamName, agentID string, conv *conversation.Manager) (strin
 		return "", err
 	}
 	return path, os.WriteFile(path, data, 0o644)
-}
-
-// LoadTranscript loads a teammate's conversation history from disk.
-// Returns nil if the file does not exist or parsing fails.
-func LoadTranscript(teamName, agentID string) *conversation.Manager {
-	path := filepath.Join(transcriptDir(teamName), agentID+".json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var entries []transcriptEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil
-	}
-	return deserializeConversation(entries)
 }

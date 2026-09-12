@@ -10,6 +10,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/openai/openai-go v1.12.0
 	go.mongodb.org/mongo-driver/v2 v2.9.1
+	golang.org/x/crypto v0.54.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -45,7 +46,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect

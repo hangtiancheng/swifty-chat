@@ -30,10 +30,9 @@ import (
 // into the real project directory.
 func newTestTeamManager(t *testing.T) *TeamManager {
 	t.Helper()
-	useTempHome(t)
 	GetNameRegistry().Clear()
 	t.Cleanup(func() { GetNameRegistry().Clear() })
-	return NewTeamManager()
+	return NewTeamManager(t.TempDir())
 }
 
 func TestCreateTeamInitializesEmptyStore(t *testing.T) {
