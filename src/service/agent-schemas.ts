@@ -120,7 +120,8 @@ export type AgentCommand =
 
 /* Timeline model */
 
-export type AgentConnectionStatus = "idle" | "connecting" | "connected" | "reconnecting";
+export type AgentConnectionStatus =
+  "idle" | "connecting" | "connected" | "reconnecting";
 
 export type ToolStatus = "running" | "ok" | "error";
 
@@ -183,4 +184,5 @@ export type AgentItem =
   | AgentNoticeItem;
 
 /** tool_use and tool_result are matched on this pair, not on arrival order. */
-export const toolKey = (toolName: string, toolId: string) => `${toolName}_${toolId}`;
+export const toolKey = (toolName: string, toolId: string) =>
+  `${toolName}_${toolId}`;

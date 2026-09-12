@@ -116,13 +116,19 @@ function QuestionRow({ question, draft, onChange }: QuestionRowProps) {
   const rowClass = (active: boolean) =>
     cn(
       "flex cursor-pointer items-start gap-2 rounded-md border px-2 py-1.5 transition-colors",
-      active ? "border-primary/40 bg-primary/5" : "border-transparent hover:bg-muted/60",
+      active
+        ? "border-primary/40 bg-primary/5"
+        : "border-transparent hover:bg-muted/60",
     );
 
   const optionLabel = (label: string, description: string) => (
     <span className="min-w-0">
       <span className="text-foreground text-xs">{label}</span>
-      {description && <span className="text-muted-foreground ml-1.5 text-xs">{description}</span>}
+      {description && (
+        <span className="text-muted-foreground ml-1.5 text-xs">
+          {description}
+        </span>
+      )}
     </span>
   );
 
@@ -136,7 +142,9 @@ function QuestionRow({ question, draft, onChange }: QuestionRowProps) {
           selected: question.multiSelect ? draft.selected : [],
         })
       }
-      onChange={(event) => onChange({ other: event.target.value, useOther: true })}
+      onChange={(event) =>
+        onChange({ other: event.target.value, useOther: true })
+      }
       className="h-7 min-w-0 flex-1 text-xs"
     />
   );
@@ -146,21 +154,28 @@ function QuestionRow({ question, draft, onChange }: QuestionRowProps) {
       <legend className="text-foreground mb-1 text-xs font-medium">
         {question.question || question.header}
         {question.multiSelect && (
-          <span className="text-muted-foreground ml-1.5 font-normal">(select all that apply)</span>
+          <span className="text-muted-foreground ml-1.5 font-normal">
+            (select all that apply)
+          </span>
         )}
       </legend>
 
       {question.multiSelect ? (
         <div className="flex flex-col gap-0.5">
           {question.options.map((option) => (
-            <label key={option.label} className={rowClass(draft.selected.includes(option.label))}>
+            <label
+              key={option.label}
+              className={rowClass(draft.selected.includes(option.label))}
+            >
               <Checkbox
                 checked={draft.selected.includes(option.label)}
                 onCheckedChange={(checked) =>
                   onChange({
                     selected: checked
                       ? [...draft.selected, option.label]
-                      : draft.selected.filter((label) => label !== option.label),
+                      : draft.selected.filter(
+                          (label) => label !== option.label,
+                        ),
                   })
                 }
                 className="mt-0.5"
@@ -171,10 +186,14 @@ function QuestionRow({ question, draft, onChange }: QuestionRowProps) {
           <label className={rowClass(draft.useOther)}>
             <Checkbox
               checked={draft.useOther}
-              onCheckedChange={(checked) => onChange({ useOther: Boolean(checked) })}
+              onCheckedChange={(checked) =>
+                onChange({ useOther: Boolean(checked) })
+              }
               className="mt-0.5"
             />
-            <span className="text-muted-foreground shrink-0 text-xs">Other:</span>
+            <span className="text-muted-foreground shrink-0 text-xs">
+              Other:
+            </span>
             {freeText}
           </label>
         </div>
@@ -189,14 +208,19 @@ function QuestionRow({ question, draft, onChange }: QuestionRowProps) {
           className="gap-0.5"
         >
           {question.options.map((option) => (
-            <label key={option.label} className={rowClass(draft.selected[0] === option.label)}>
+            <label
+              key={option.label}
+              className={rowClass(draft.selected[0] === option.label)}
+            >
               <RadioGroupItem value={option.label} className="mt-0.5" />
               {optionLabel(option.label, option.description)}
             </label>
           ))}
           <label className={rowClass(draft.useOther)}>
             <RadioGroupItem value={OTHER} className="mt-0.5" />
-            <span className="text-muted-foreground shrink-0 text-xs">Other:</span>
+            <span className="text-muted-foreground shrink-0 text-xs">
+              Other:
+            </span>
             {freeText}
           </label>
         </RadioGroup>

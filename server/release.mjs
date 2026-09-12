@@ -127,21 +127,31 @@ if (!existsSync(buildDir)) {
   fail(`build output not found: ${buildDir}`);
 }
 
-const missing = EXPECTED_ASSETS.filter((name) => !existsSync(join(buildDir, name)));
+const missing = EXPECTED_ASSETS.filter(
+  (name) => !existsSync(join(buildDir, name)),
+);
 if (missing.length > 0) {
-  fail(`missing binaries in ./${OUTPUT_DIR}: ${missing.join(", ")} (run without --skip-build)`);
+  fail(
+    `missing binaries in ./${OUTPUT_DIR}: ${missing.join(", ")} (run without --skip-build)`,
+  );
 }
 
-const extra = readdirSync(buildDir).filter((name) => !EXPECTED_ASSETS.includes(name));
+const extra = readdirSync(buildDir).filter(
+  (name) => !EXPECTED_ASSETS.includes(name),
+);
 if (extra.length > 0) {
-  console.log(`[release] ignoring extra files in ./${OUTPUT_DIR}: ${extra.join(", ")}`);
+  console.log(
+    `[release] ignoring extra files in ./${OUTPUT_DIR}: ${extra.join(", ")}`,
+  );
 }
 
 const tag = "swifty";
 const assets = EXPECTED_ASSETS.map((name) => join(buildDir, name));
 
 if (check("gh", ["release", "view", tag, "--repo", REPO])) {
-  console.log(`[release] release ${tag} already exists, uploading assets with --clobber`);
+  console.log(
+    `[release] release ${tag} already exists, uploading assets with --clobber`,
+  );
   run("gh", ["release", "upload", tag, ...assets, "--repo", REPO, "--clobber"]);
 } else {
   run("gh", [

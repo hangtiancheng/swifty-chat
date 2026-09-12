@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-// First: cd resolve(__dirname, ../../../../../../swifty-cli)
+// First: cd resolve(__dirname, ../../../../../../swifty-code)
 // Second: run `pnpm install`, then `pnpm fe:build`
-// Third: cp -r dist (/path/to/swifty-cli/apps/swifty/src/remote/fe/dist) to /path/to/swifty-chat/server/internal/swifty/remote/fe/
+// Third: cp -r dist (/path/to/swifty-code/apps/swifty/src/remote/fe/dist) to /path/to/swifty-chat/server/internal/swifty/remote/fe/
 
 import path from "node:path";
 import fs from "node:fs";
@@ -32,8 +32,12 @@ import { fileURLToPath } from "node:url";
 /** @type {string} Directory containing this script. */
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** @type {string} Root of the swifty-cli repository (sibling of swifty.go). */
-const swiftyCliRoot = path.resolve(__dirname, "../../../../../..", "swifty-cli");
+/** @type {string} Root of the swifty-code repository (sibling of swifty.go). */
+const swiftyCliRoot = path.resolve(
+  __dirname,
+  "../../../../../..",
+  "swifty-code",
+);
 
 /** @type {string} Package dir that owns the `fe:build` script. */
 const swiftyAppDir = path.join(swiftyCliRoot, "apps", "swifty");
@@ -63,18 +67,20 @@ function run(command, args, cwd) {
     process.exit(1);
   }
   if (result.status !== 0) {
-    console.error(`${command} ${args.join(" ")} exited with code ${result.status}`);
+    console.error(
+      `${command} ${args.join(" ")} exited with code ${result.status}`,
+    );
     process.exit(result.status ?? 1);
   }
 }
 
 /**
- * Build the swifty-cli frontend and copy its dist into this directory.
+ * Build the swifty-code frontend and copy its dist into this directory.
  * @returns {void}
  */
 function main() {
   if (!fs.existsSync(swiftyCliRoot)) {
-    console.error(`swifty-cli repo not found at ${swiftyCliRoot}`);
+    console.error(`swifty-code repo not found at ${swiftyCliRoot}`);
     process.exit(1);
   }
 

@@ -102,11 +102,19 @@ function withItem(state: Snapshot, item: AgentItem): Snapshot {
   return { ...state, items: [...state.items, item] };
 }
 
-function notice(state: Snapshot, tone: "info" | "error" | "done", content: string): Snapshot {
+function notice(
+  state: Snapshot,
+  tone: "info" | "error" | "done",
+  content: string,
+): Snapshot {
   // A failing socket re-reports the same reason on every retry, so an
   // identical repeat of the previous line is dropped instead of stacking up.
   const last = state.items.at(-1);
-  if (last?.kind === "notice" && last.tone === tone && last.content === content) {
+  if (
+    last?.kind === "notice" &&
+    last.tone === tone &&
+    last.content === content
+  ) {
     return state;
   }
   return withItem(state, {
@@ -125,7 +133,9 @@ function finalizeThinking(state: Snapshot): Snapshot {
     ...state,
     currentThinkingId: null,
     items: state.items.map((item) =>
-      item.kind === "thinking" && item.id === id ? { ...item, done: true } : item,
+      item.kind === "thinking" && item.id === id
+        ? { ...item, done: true }
+        : item,
     ),
   };
 }
@@ -265,7 +275,8 @@ function apply(state: Snapshot, event: AgentEvent): Snapshot {
       const next = finalizeThinking(state);
       const key = toolKey(event.data.toolName, event.data.toolId);
       const known = next.items.some(
-        (item) => item.kind === "tool" && toolKey(item.toolName, item.toolId) === key,
+        (item) =>
+          item.kind === "tool" && toolKey(item.toolName, item.toolId) === key,
       );
       if (known) {
         // A call is announced twice: once when the model starts emitting it,
@@ -298,7 +309,10 @@ function apply(state: Snapshot, event: AgentEvent): Snapshot {
       const key = toolKey(event.data.toolName, event.data.toolId);
       let matched = false;
       const items = state.items.map((item) => {
-        if (item.kind !== "tool" || toolKey(item.toolName, item.toolId) !== key) {
+        if (
+          item.kind !== "tool" ||
+          toolKey(item.toolName, item.toolId) !== key
+        ) {
           return item;
         }
         matched = true;
@@ -358,7 +372,11 @@ function apply(state: Snapshot, event: AgentEvent): Snapshot {
       return notice(state, "info", event.data.message);
 
     case "error":
-      return notice({ ...settlePrompts(state), streaming: false }, "error", event.data.message);
+      return notice(
+        { ...settlePrompts(state), streaming: false },
+        "error",
+        event.data.message,
+      );
 
     case "compact":
       return notice(state, "info", `⟳ ${event.data.message}`);
@@ -423,13 +441,18 @@ function openSocket() {
     socket.close();
   }
 
-  const next = new WebSocket(`${wsUrl}/agent/ws?token=${encodeURIComponent(token)}`);
+  const next = new WebSocket(
+    `${wsUrl}/agent/ws?token=${encodeURIComponent(token)}`,
+  );
   next.onopen = () => {
     reconnectDelay = INITIAL_RECONNECT_DELAY;
     useAgentStore.setState({ status: "connected" });
     // The server answers with pong; the round trip keeps proxies from idling
     // the socket out during a long tool call.
-    pingTimer = setInterval(() => send({ type: "ping", data: null }), PING_INTERVAL);
+    pingTimer = setInterval(
+      () => send({ type: "ping", data: null }),
+      PING_INTERVAL,
+    );
   };
   next.onmessage = (event: MessageEvent) => handleFrame(event.data);
   next.onclose = () => {
@@ -481,7 +504,9 @@ const useAgentStore = create<AgentState>(() => ({
     send({ type: "permission_response", data: { id, response } });
     useAgentStore.setState((state) => ({
       items: state.items.map((item) =>
-        item.kind === "permission" && item.id === id ? { ...item, response } : item,
+        item.kind === "permission" && item.id === id
+          ? { ...item, response }
+          : item,
       ),
     }));
   },
@@ -490,7 +515,9 @@ const useAgentStore = create<AgentState>(() => ({
     send({ type: "ask_user_response", data: { id, answers } });
     useAgentStore.setState((state) => ({
       items: state.items.map((item) =>
-        item.kind === "question" && item.id === id ? { ...item, answered: true } : item,
+        item.kind === "question" && item.id === id
+          ? { ...item, answered: true }
+          : item,
       ),
     }));
   },
