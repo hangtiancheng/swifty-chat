@@ -62,11 +62,11 @@ func TestContext7MCP(t *testing.T) {
 	// Print the input schema of the first tool
 	t.Logf("Input schema: %+v", tools[0].InputSchema)
 
-	// Call resolve-library-id with "bubbles"
-	t.Log("Calling resolve-library-id with 'bubbles'...")
+	// Call resolve-library-id with "gin"
+	t.Log("Calling resolve-library-id with 'gin'...")
 	text, isError, err := client.CallTool(ctx, "resolve-library-id", map[string]any{
-		"query":       "charmbracelet/bubbles",
-		"libraryName": "bubbles",
+		"query":       "gin-gonic/gin",
+		"libraryName": "gin",
 	})
 	if err != nil {
 		t.Fatalf("CallTool failed: %v", err)

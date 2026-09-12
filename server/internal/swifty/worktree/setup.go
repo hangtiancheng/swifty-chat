@@ -217,15 +217,6 @@ var worktreeConfig = struct {
 	StaleCutoffHours: 720,
 }
 
-// SetWorktreeConfig allows the TUI/CLI startup to inject config values.
-func SetWorktreeConfig(symlinkDirs []string, cleanupIntervalSec, cutoffHours int) {
-	worktreeConfig.SymlinkDirectories = symlinkDirs
-	worktreeConfig.StaleCleanupInterval = cleanupIntervalSec
-	if cutoffHours > 0 {
-		worktreeConfig.StaleCutoffHours = cutoffHours
-	}
-}
-
 // GetStaleCutoffHours returns the configured cutoff in hours.
 func GetStaleCutoffHours() int {
 	return worktreeConfig.StaleCutoffHours

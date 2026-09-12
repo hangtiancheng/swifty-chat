@@ -90,7 +90,7 @@ isolated agent workspace, streamed live into the conversation.
 | Frontend  | React 19, Vite 8, TypeScript, Tailwind CSS v4, shadcn/ui, Zustand, TanStack Query/Form/Virtual, TipTap, Streamdown                                              |
 | Backend   | Go 1.26, [`swifty_http`](https://github.com/hangtiancheng/swifty.go) (HTTP + WebSocket), `swifty_orm` (MongoDB), `swifty_cache` (in-process read-through cache) |
 | Storage   | MongoDB 7                                                                                                                                                       |
-| Agent     | Swifty (Go, Bubble Tea TUI / WebSocket remote mode)                                                                                                             |
+| Agent     | Swifty (Go agent embedded in the chat server via `agent_hub`)                                                                                                   |
 | Packaging | Docker (multi-stage), nginx, PWA                                                                                                                                |
 
 ## Getting Started
@@ -244,8 +244,7 @@ Backend (`server/`):
 
 ```bash
 make dev          # hot-reload the chat server with air
-make swifty       # run the Swifty TUI
-make build        # build both binaries into ./tmp
+make build        # build the chat server into ./tmp
 ```
 
 ## License

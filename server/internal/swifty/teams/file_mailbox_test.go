@@ -98,7 +98,7 @@ func TestFileMailBoxNonexistentAgent(t *testing.T) {
 
 func TestTeamSendMessageIntegration(t *testing.T) {
 	dir := t.TempDir()
-	team := NewTeam("test-team", ModeInProcess)
+	team := NewTeam("test-team")
 	team.MailBox = NewFileMailBox(filepath.Join(dir, "inboxes"))
 
 	team.SendMessage("leader", "worker", "do task X")
@@ -111,7 +111,7 @@ func TestTeamSendMessageIntegration(t *testing.T) {
 
 func TestInjectPendingMessages(t *testing.T) {
 	dir := t.TempDir()
-	team := NewTeam("test-team", ModeInProcess)
+	team := NewTeam("test-team")
 	team.MailBox = NewFileMailBox(filepath.Join(dir, "inboxes"))
 
 	team.SendMessage("alice", "bob", "hello bob")

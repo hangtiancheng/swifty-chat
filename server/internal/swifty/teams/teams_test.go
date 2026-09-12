@@ -96,7 +96,7 @@ func TestTeamManagerCRUD(t *testing.T) {
 	useTempHome(t)
 	tm := NewTeamManager()
 
-	team := tm.CreateTeam("alpha", ModeInProcess)
+	team := tm.CreateTeam("alpha")
 	if team == nil {
 		t.Fatal("CreateTeam returned nil")
 	}
@@ -122,7 +122,7 @@ func TestSendMessageToolRoutesToLead(t *testing.T) {
 	// accumulating in the same inbox across runs.
 	useTempHome(t)
 	tm := NewTeamManager()
-	team := tm.CreateTeam("demo", ModeInProcess)
+	team := tm.CreateTeam("demo")
 	team.AddMember("alice", nil, nil, "")
 
 	tool := &SendMessageTool{TeamMgr: tm, SenderName: "alice"}
@@ -157,7 +157,7 @@ func TestSendMessageToolUnknownSenderToLead(t *testing.T) {
 	// accumulating in the same inbox across runs.
 	useTempHome(t)
 	tm := NewTeamManager()
-	tm.CreateTeam("demo", ModeInProcess) // no members added
+	tm.CreateTeam("demo") // no members added
 
 	tool := &SendMessageTool{TeamMgr: tm, SenderName: "ghost"}
 	res := tool.Execute(context.Background(), map[string]any{

@@ -99,9 +99,8 @@ func newTyped(from, msgType, requestID, text string) FileMailMessage {
 // IsShutdownRequest reports whether a message is a shutdown request.
 //
 // In addition to checking Type, it also recognizes the "[shutdown]" text
-// prefix: pane teammates are independent processes that may have been started
-// by an older version; and a user manually inserting a line into the mailbox
-// should also work.
+// prefix so that a message persisted by an older version, or a line a user
+// manually inserted into the mailbox, still works.
 func IsShutdownRequest(m FileMailMessage) bool {
 	return m.Type == MsgShutdownRequest || strings.HasPrefix(strings.TrimSpace(m.Text), ShutdownPrefix)
 }

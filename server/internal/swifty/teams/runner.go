@@ -159,7 +159,7 @@ func RunInProcessTeammate(
 		}
 		if shutdown != nil {
 			// Before wrapping up, give the Lead an explicit acknowledgment so it
-			// knows the pane can be reclaimed. Teammates always agree here: they
+			// knows the teammate can be reclaimed. Teammates always agree here: they
 			// are already in idle polling with no work in progress. The real
 			// refusal scenario is being interrupted mid-task, in which case the
 			// teammate would never reach this polling point.

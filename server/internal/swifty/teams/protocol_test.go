@@ -39,7 +39,8 @@ func TestShutdownRequestRecognized(t *testing.T) {
 		t.Error("structured shutdown request should be recognized")
 	}
 
-	// Plain text prefix must also be recognized; pane teammates may be older-version processes.
+	// Plain text prefix must also be recognized; mailbox lines may come from
+	// an older version or be inserted by hand.
 	legacy := NewFileMailMessage(LeadName, "[shutdown] stop")
 	if !IsShutdownRequest(legacy) {
 		t.Error("[shutdown] text prefix should be recognized")

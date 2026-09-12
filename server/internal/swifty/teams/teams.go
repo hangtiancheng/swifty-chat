@@ -34,18 +34,9 @@ import (
 	"github.com/hangtiancheng/swifty-chat/server/internal/swifty/tools"
 )
 
-type TeamMode string
-
-const (
-	ModeInProcess TeamMode = "in-process"
-	ModeTmux      TeamMode = "tmux"
-)
-
 // teamsBaseDir is the root directory for all team directories. It lives under
-// the user's home directory rather than the project directory, because pane
-// teammates are independent processes whose working directory may be changed
-// by worktrees; using the home directory ensures both teammate processes and
-// the Lead find the same team configuration.
+// the user's home directory rather than the project directory so the team
+// configuration survives worktree switches and server restarts.
 func teamsBaseDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -61,9 +52,6 @@ type Member struct {
 	Conv     *conversation.Manager
 	Active   bool
 	Cancel   context.CancelFunc
-	// PaneID is the backend-specific handle assigned by tmux/iTerm
-	// spawn (e.g. window or tab name). Empty for in-process members.
-	PaneID   string
 	Progress *TeammateProgress
 
 	// The following fields are metadata for persistence; they do not
@@ -78,7 +66,6 @@ type Member struct {
 
 type Team struct {
 	Name    string
-	Mode    TeamMode
 	Members map[string]*Member
 	MailBox *FileMailBox
 	mu      sync.Mutex
@@ -89,11 +76,10 @@ type Team struct {
 	CreatedAt   int64
 }
 
-func NewTeam(name string, mode TeamMode) *Team {
+func NewTeam(name string) *Team {
 	inboxDir := filepath.Join(teamDir(name), "inboxes")
 	return &Team{
 		Name:      name,
-		Mode:      mode,
 		Members:   make(map[string]*Member),
 		MailBox:   NewFileMailBox(inboxDir),
 		CreatedAt: time.Now().Unix(),
@@ -163,17 +149,6 @@ func (t *Team) StopMember(name string) {
 	if !ok {
 		return
 	}
-	// External backends (tmux/iTerm) own a real OS pane that must be
-	// torn down before clearing the local handle. In-process members
-	// just need the goroutine cancelled.
-	if member.PaneID != "" {
-		switch t.Mode {
-		case ModeTmux:
-			stopTmuxTeammate(member.PaneID)
-		case ModeITerm:
-			stopITermTeammate(member.PaneID)
-		}
-	}
 	if member.Cancel != nil {
 		member.Cancel()
 	}
@@ -218,17 +193,17 @@ func teamDir(name string) string {
 	return filepath.Join(teamsBaseDir(), sanitizeTeamName(name))
 }
 
-func (tm *TeamManager) CreateTeam(name string, mode TeamMode) *Team {
-	return tm.CreateTeamFull(name, mode, "", "")
+func (tm *TeamManager) CreateTeam(name string) *Team {
+	return tm.CreateTeamFull(name, "", "")
 }
 
 // CreateTeamFull creates a team, records the lead and description, then writes
-// the configuration to config.json. Once persisted, teammate processes and
-// future sessions can recover the team via GetTeam.
-func (tm *TeamManager) CreateTeamFull(name string, mode TeamMode, leadAgentID, description string) *Team {
+// the configuration to config.json. Once persisted, future sessions can
+// recover the team via GetTeam.
+func (tm *TeamManager) CreateTeamFull(name string, leadAgentID, description string) *Team {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
-	team := NewTeam(name, mode)
+	team := NewTeam(name)
 	team.LeadAgentID = leadAgentID
 	team.Description = description
 	tm.teams[name] = team
@@ -253,10 +228,8 @@ func (tm *TeamManager) GetTaskStore(teamName string) *SharedTaskStore {
 	return store
 }
 
-// CreateTeamWith registers an externally-constructed Team. Worker
-// processes spawned by tmux/iTerm build a Team locally (pointing at
-// the same mailbox dir as the lead's) and use this to expose it to
-// SendMessage in the same process.
+// CreateTeamWith registers an externally-constructed Team so SendMessage
+// and the coordination tools can reach it in this process.
 func (tm *TeamManager) CreateTeamWith(team *Team) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
@@ -278,14 +251,11 @@ func (tm *TeamManager) GetTeam(name string) *Team {
 	if err != nil || tf == nil {
 		return nil
 	}
-	team := NewTeam(tf.Name, ModeInProcess)
+	team := NewTeam(tf.Name)
 	team.LeadAgentID = tf.LeadAgentID
 	team.Description = tf.Description
 	team.CreatedAt = tf.CreatedAt
 	for _, m := range tf.Members {
-		if m.BackendType != "" {
-			team.Mode = TeamMode(m.BackendType)
-		}
 		active := false
 		if m.IsActive != nil {
 			active = *m.IsActive

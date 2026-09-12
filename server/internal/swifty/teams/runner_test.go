@@ -110,7 +110,6 @@ func TestWaitForNextPromptOrShutdownShutdown(t *testing.T) {
 	dir := t.TempDir()
 	team := &Team{
 		Name:    "x",
-		Mode:    ModeInProcess,
 		Members: map[string]*Member{},
 		MailBox: NewFileMailBox(dir),
 	}
@@ -140,7 +139,6 @@ func TestWaitForNextPromptOrShutdownMessage(t *testing.T) {
 	dir := t.TempDir()
 	team := &Team{
 		Name:    "x",
-		Mode:    ModeInProcess,
 		Members: map[string]*Member{},
 		MailBox: NewFileMailBox(dir),
 	}
@@ -174,7 +172,6 @@ func TestWaitForNextPromptOrShutdownCancel(t *testing.T) {
 	dir := t.TempDir()
 	team := &Team{
 		Name:    "x",
-		Mode:    ModeInProcess,
 		Members: map[string]*Member{},
 		MailBox: NewFileMailBox(dir),
 	}
@@ -192,8 +189,8 @@ func TestDrainLeadMailbox(t *testing.T) {
 	// Build teams with explicit mailbox dirs so we don't pollute the
 	// repo root via teamsBaseDir().
 	mgr := NewTeamManager()
-	t1 := &Team{Name: "alpha", Mode: ModeInProcess, Members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
-	t2 := &Team{Name: "beta", Mode: ModeInProcess, Members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
+	t1 := &Team{Name: "alpha", Members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
+	t2 := &Team{Name: "beta", Members: map[string]*Member{}, MailBox: NewFileMailBox(t.TempDir())}
 	mgr.CreateTeamWith(t1)
 	mgr.CreateTeamWith(t2)
 
@@ -224,27 +221,6 @@ func TestDrainLeadMailboxNilSafe(t *testing.T) {
 	}
 }
 
-func TestBuildTeammateCLIFormat(t *testing.T) {
-	cmd, err := BuildTeammateCLI("my team", "alice/dev", "/tmp/work dir")
-	if err != nil {
-		t.Fatalf("BuildTeammateCLI: %v", err)
-	}
-	// Spaces and slashes must be quoted, --teammate must be present,
-	// and the cd prefix must use the supplied workdir.
-	if !strings.Contains(cmd, "--teammate") {
-		t.Errorf("command missing --teammate flag: %s", cmd)
-	}
-	if !strings.Contains(cmd, "--team-name 'my team'") {
-		t.Errorf("team-name not quoted with spaces: %s", cmd)
-	}
-	if !strings.Contains(cmd, "--agent-name alice/dev") {
-		t.Errorf("agent-name missing: %s", cmd)
-	}
-	if !strings.HasPrefix(cmd, "cd '/tmp/work dir'") {
-		t.Errorf("missing cd prefix: %s", cmd)
-	}
-}
-
 func TestSpawnTeammateValidation(t *testing.T) {
 	ctx := context.Background()
 
@@ -254,44 +230,8 @@ func TestSpawnTeammateValidation(t *testing.T) {
 	}
 
 	// Missing name
-	team := NewTeam("t", ModeInProcess)
+	team := NewTeam("t")
 	if _, err := SpawnTeammate(ctx, TeammateSpawnConfig{Team: team}); err == nil {
 		t.Error("expected error when MemberName is empty")
-	}
-
-	// Unknown mode
-	bad := NewTeam("t", "bogus")
-	if _, err := SpawnTeammate(ctx, TeammateSpawnConfig{Team: bad, MemberName: "x"}); err == nil {
-		t.Error("expected error for unknown team mode")
-	}
-}
-
-func TestRecordExternalMember(t *testing.T) {
-	team := NewTeam("ops", ModeTmux)
-	team.recordExternalMember("alice", "pane-1")
-
-	m, ok := team.Members["alice"]
-	if !ok {
-		t.Fatal("member not recorded")
-	}
-	if m.PaneID != "pane-1" {
-		t.Errorf("PaneID = %q, want pane-1", m.PaneID)
-	}
-	if !m.Active {
-		t.Error("recorded member should be Active=true")
-	}
-}
-
-func TestShellQuote(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"", "''"},
-		{"safe", "safe"},
-		{"hello world", "'hello world'"},
-		{"it's", "'it'\\''s'"},
-	}
-	for _, c := range cases {
-		if got := shellQuote(c.in); got != c.want {
-			t.Errorf("shellQuote(%q) = %q, want %q", c.in, got, c.want)
-		}
 	}
 }

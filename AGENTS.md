@@ -1,6 +1,5 @@
 - ./ is React frontend project, recommend skills: shadcn
 - ./server is Go backend project: @server/cmd/main.go, recommend skills: swifty-http, swifty-orm
-- ./server also includes an terminal agent @server/cmd/swifty/main.go, @server/internal/swifty, try not to modify the code for the terminal agent.
-- ./server/internal/swifty/remote -- A demo remote project for the terminal agent.
+- ./server/internal/swifty -- the Swifty agent embedded in the chat server via @server/internal/agent_hub, try not to modify the agent code.
 - respect to eslint.config.js
 - Use codegraph to speed up code exploration

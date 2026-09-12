@@ -270,7 +270,7 @@ Provide a concise summary of the given text.
 		}
 	}
 
-	// Simulate system prompt building (same logic as tui.go)
+	// Simulate system prompt building (same logic as agent_hub)
 	var sb strings.Builder
 	sb.WriteString("## Available Skills\n\n")
 	sb.WriteString("Skills are installed at: " + dir + "\n")
@@ -298,7 +298,7 @@ Provide a concise summary of the given text.
 		t.Fatal("system prompt missing /summarize command")
 	}
 
-	// Simulate skill command handler (same logic as tui.go)
+	// Simulate skill command handler (same logic as agent_hub)
 	skill := catalog.Get("greeting")
 	body := skill.PromptBody
 

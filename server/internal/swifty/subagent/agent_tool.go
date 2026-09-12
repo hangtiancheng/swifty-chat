@@ -613,8 +613,8 @@ func (t *AgentTool) runAsync(ctx context.Context, spec SubAgentSpec, description
 
 // runAsTeammate registers a long-running team member on an existing Team. Unlike runSync/runAsync,
 // this path never blocks the lead on the member's output: the lead always returns immediately and
-// coordinates through SendMessage + idle notifications in the team mailbox. The backend (in-process
-// / tmux / iTerm) is picked from Team.Mode by teams.SpawnTeammate.
+// coordinates through SendMessage + idle notifications in the team mailbox. The member runs as an
+// in-process goroutine launched by teams.SpawnTeammate.
 //
 // When isolation == "worktree" and a WorktreeMgr is configured, the teammate gets a dedicated git
 // worktree so its file edits don't collide with peers' work.
@@ -628,7 +628,7 @@ func (t *AgentTool) runAsTeammate(
 	// team before dispatching members would leave it stuck at the first step.
 	team := t.TeamMgr.GetTeam(teamName)
 	if team == nil {
-		team = t.TeamMgr.CreateTeamFull(teamName, teams.DetectBackend(), teams.LeadName, description)
+		team = t.TeamMgr.CreateTeamFull(teamName, teams.LeadName, description)
 	}
 
 	if memberName == "" {
@@ -699,7 +699,7 @@ func (t *AgentTool) runAsTeammate(
 			t.ParentChecker.Sandbox, t.ParentChecker.RuleEngine, permissions.ModePlan)
 	}
 
-	result, err := teams.SpawnTeammate(ctx, teams.TeammateSpawnConfig{
+	eventCh, err := teams.SpawnTeammate(ctx, teams.TeammateSpawnConfig{
 		Team:       team,
 		MemberName: memberName,
 		Checker:    teammateChecker,
@@ -717,23 +717,19 @@ func (t *AgentTool) runAsTeammate(
 		}
 	}
 
-	// In-process spawns hand back a live event channel; drain it in the background so the goroutine
-	// doesn't block on a full chan. Lead-visible progress flows through the mailbox, not this drain.
-	if result.Mode == teams.ModeInProcess && result.EventCh != nil {
-		go drainTeammateEvents(memberName, result.EventCh, t.ProgressCh)
-	}
+	// Drain the teammate's event channel in the background so the goroutine
+	// doesn't block on a full chan. Lead-visible progress flows through the
+	// mailbox, not this drain.
+	go drainTeammateEvents(memberName, eventCh, t.ProgressCh)
 
-	backendHint := string(result.Mode)
-	if result.PaneID != "" {
-		backendHint += " pane=" + result.PaneID
-	}
+	hint := ""
 	if workdir != "" {
-		backendHint += " worktree=" + workdir
+		hint = " [worktree=" + workdir + "]"
 	}
 	return tools.ToolResult{
 		Output: fmt.Sprintf(
-			"Teammate \"%s\" started on team \"%s\" [%s]. Use SendMessage to talk to it; its idle notifications will arrive as system reminders.",
-			memberName, teamName, backendHint,
+			"Teammate \"%s\" started on team \"%s\"%s. Use SendMessage to talk to it; its idle notifications will arrive as system reminders.",
+			memberName, teamName, hint,
 		),
 	}
 }

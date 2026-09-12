@@ -115,7 +115,7 @@ func TestCoordinatorDisabledReturnsNil(t *testing.T) {
 func TestTaskStopStopsTeammate(t *testing.T) {
 	useTempHome(t)
 	mgr := NewTeamManager()
-	team := mgr.CreateTeam("squad", ModeInProcess)
+	team := mgr.CreateTeam("squad")
 	member := team.AddMember("scout", nil, nil, "anthropic")
 	member.Active = true
 	stopped := false
@@ -137,7 +137,7 @@ func TestTaskStopStopsTeammate(t *testing.T) {
 func TestTaskStopOnUnknownTeammate(t *testing.T) {
 	useTempHome(t)
 	mgr := NewTeamManager()
-	mgr.CreateTeam("squad", ModeInProcess)
+	mgr.CreateTeam("squad")
 
 	tool := &TaskStopTool{TeamMgr: mgr}
 	res := tool.Execute(context.Background(), map[string]any{"teammate": "ghost"})
@@ -151,7 +151,7 @@ func TestTaskStopOnUnknownTeammate(t *testing.T) {
 func TestTaskStopOnIdleTeammate(t *testing.T) {
 	useTempHome(t)
 	mgr := NewTeamManager()
-	team := mgr.CreateTeam("squad", ModeInProcess)
+	team := mgr.CreateTeam("squad")
 	team.AddMember("scout", nil, nil, "anthropic")
 
 	tool := &TaskStopTool{TeamMgr: mgr}
@@ -228,15 +228,12 @@ func TestCoordinatorReminderGoesSparseAfterFirstTurn(t *testing.T) {
 	}
 }
 
-// All three entry points (TUI / remote / print) must install team tools and
-// share the same coordinator predicates, otherwise the same feature behaves
-// inconsistently across entry points: some can dispatch teammates while others
-// cannot even after creating a team.
+// The chat server's agent_hub entry point must install team tools and share
+// the same coordinator predicates, otherwise the lead cannot dispatch
+// teammates even after creating a team.
 func TestCoordinatorWiringIsSameAcrossEntrypoints(t *testing.T) {
 	roots := map[string]string{
-		"tui":    "../tui/tui.go",
-		"remote": "../remote/server.go",
-		"print":  "../../../cmd/swifty/print.go",
+		"agent_hub": "../../agent_hub/session.go",
 	}
 	// Assembly fragments that must appear in every entry point.
 	required := []string{

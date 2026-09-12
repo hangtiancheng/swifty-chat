@@ -150,10 +150,8 @@ func (t *SendMessageTool) Execute(ctx context.Context, args map[string]any) tool
 	}
 
 	// Find a registered teammate with this name, or fall back to the
-	// file-based mailbox. In tmux/iTerm mode each teammate runs in a
-	// separate process and only knows about itself in Members, so the
-	// in-memory lookup will miss peers. The mailbox write always works
-	// because all processes share the same inbox directory on disk.
+	// file-based mailbox so delivery still works when the recipient is
+	// not present in the in-memory member map.
 	for _, teamName := range t.TeamMgr.ListTeams() {
 		team := t.TeamMgr.GetTeam(teamName)
 		if team == nil {
@@ -266,12 +264,11 @@ func (t *TeamCreateTool) Execute(ctx context.Context, args map[string]any) tools
 		name = fmt.Sprintf("%s-%d", baseName, i)
 	}
 
-	mode := detectBackend()
 	desc, _ := args["description"].(string)
-	team := t.TeamMgr.CreateTeamFull(name, mode, LeadName, desc)
+	team := t.TeamMgr.CreateTeamFull(name, LeadName, desc)
 	return tools.ToolResult{
-		Output: fmt.Sprintf("Team \"%s\" created (mode: %s). Use Agent tool with team_name=\"%s\" to add teammates.\nDescription: %s",
-			team.Name, team.Mode, team.Name, desc),
+		Output: fmt.Sprintf("Team \"%s\" created. Use Agent tool with team_name=\"%s\" to add teammates.\nDescription: %s",
+			team.Name, team.Name, desc),
 	}
 }
 

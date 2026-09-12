@@ -38,7 +38,7 @@ func newTestTeamManager(t *testing.T) *TeamManager {
 
 func TestCreateTeamInitializesEmptyStore(t *testing.T) {
 	mgr := newTestTeamManager(t)
-	mgr.CreateTeam("myteam", ModeInProcess)
+	mgr.CreateTeam("myteam")
 	store := mgr.GetTaskStore("myteam")
 	if store == nil || len(store.ListTasks("", "")) != 0 {
 		t.Fatalf("new team should have empty shared store")
@@ -47,7 +47,7 @@ func TestCreateTeamInitializesEmptyStore(t *testing.T) {
 
 func TestTeamTaskToolsFlow(t *testing.T) {
 	mgr := newTestTeamManager(t)
-	mgr.CreateTeam("myteam", ModeInProcess)
+	mgr.CreateTeam("myteam")
 	ctx := context.Background()
 
 	create := &TaskCreateTool{TeamMgr: mgr, TeamName: "myteam", AgentName: "lead"}
@@ -82,7 +82,7 @@ func TestTeamTaskToolsFlow(t *testing.T) {
 
 func TestTaskUpdateRejectsInvalidStatus(t *testing.T) {
 	mgr := newTestTeamManager(t)
-	mgr.CreateTeam("myteam", ModeInProcess)
+	mgr.CreateTeam("myteam")
 	ctx := context.Background()
 
 	(&TaskCreateTool{TeamMgr: mgr, TeamName: "myteam"}).Execute(ctx, map[string]any{"title": "t"})
@@ -94,7 +94,7 @@ func TestTaskUpdateRejectsInvalidStatus(t *testing.T) {
 
 func TestTaskGetMissingIsError(t *testing.T) {
 	mgr := newTestTeamManager(t)
-	mgr.CreateTeam("myteam", ModeInProcess)
+	mgr.CreateTeam("myteam")
 	r := (&TaskGetTool{TeamMgr: mgr, TeamName: "myteam"}).Execute(context.Background(), map[string]any{"task_id": "42"})
 	if !r.IsError {
 		t.Fatalf("expected error for missing task")
@@ -103,7 +103,7 @@ func TestTaskGetMissingIsError(t *testing.T) {
 
 func TestDeleteTeamUnregistersMembers(t *testing.T) {
 	mgr := newTestTeamManager(t)
-	team := mgr.CreateTeam("myteam", ModeInProcess)
+	team := mgr.CreateTeam("myteam")
 	team.Members["alice"] = &Member{Name: "alice"}
 	GetNameRegistry().Register("alice", "alice")
 

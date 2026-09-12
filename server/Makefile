@@ -1,14 +1,7 @@
-.PHONY: dev swifty build
+.PHONY: dev build
 
 dev: ## Hot-reload the chat server with air
 	air -c .air.toml
 
-swifty: ## Run the swifty TUI
-	go run ./cmd/swifty
-
-build: ## Build both binaries into ./tmp
+build: ## Build the chat server into ./tmp
 	go build -o ./tmp/main ./cmd
-	go build -o ./tmp/swifty ./cmd/swifty
-
-remote:
-	node ./internal/swifty/remote/fe/index.js

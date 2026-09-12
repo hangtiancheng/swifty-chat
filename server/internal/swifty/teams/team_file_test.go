@@ -30,7 +30,7 @@ func TestTeamFileRoundTrip(t *testing.T) {
 	useTempHome(t)
 
 	tm := NewTeamManager()
-	team := tm.CreateTeamFull("Refactor Auth", ModeInProcess, "lead", "refactor the auth module")
+	team := tm.CreateTeamFull("Refactor Auth", "lead", "refactor the auth module")
 	team.AddMember("alice", nil, nil, "anthropic")
 	team.SetMemberMeta("alice", "worker", "claude-sonnet-4-6", "/tmp/wt/alice")
 
@@ -59,7 +59,7 @@ func TestTeamFilePathIsSanitized(t *testing.T) {
 	useTempHome(t)
 
 	tm := NewTeamManager()
-	tm.CreateTeamFull("Refactor Auth!", ModeTmux, "lead", "")
+	tm.CreateTeamFull("Refactor Auth!", "lead", "")
 
 	want := filepath.Join(teamsBaseDir(), "refactor-auth-", "config.json")
 	if _, err := os.Stat(want); err != nil {
@@ -71,7 +71,7 @@ func TestDeleteTeamRemovesDir(t *testing.T) {
 	useTempHome(t)
 
 	tm := NewTeamManager()
-	tm.CreateTeamFull("gone", ModeInProcess, "lead", "")
+	tm.CreateTeamFull("gone", "lead", "")
 	if _, err := os.Stat(teamDir("gone")); err != nil {
 		t.Fatalf("directory should exist after team creation: %v", err)
 	}

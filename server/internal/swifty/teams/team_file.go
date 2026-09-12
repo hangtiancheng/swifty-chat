@@ -36,10 +36,8 @@ import (
 // functions — none of which are serializable — so the persisted form is a
 // separate metadata-only structure. The two are correlated by member name.
 //
-// This file solves cross-process and cross-restart concerns: pane teammates
-// are independent processes that need to know which team they belong to and
-// who their peers are; users restarting Swifty must be able to resume
-// previously created teams.
+// This file solves the cross-restart concern: a restarted server must be
+// able to resume previously created teams.
 type TeamFile struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description,omitempty"`
@@ -58,7 +56,6 @@ type TeamMemberFile struct {
 	Model        string `json:"model,omitempty"`
 	JoinedAt     int64  `json:"joinedAt"`
 	WorktreePath string `json:"worktreePath,omitempty"`
-	BackendType  string `json:"backendType,omitempty"`
 	IsActive     *bool  `json:"isActive,omitempty"`
 }
 
@@ -130,7 +127,6 @@ func (t *Team) snapshot() *TeamFile {
 			Model:        m.Model,
 			JoinedAt:     m.JoinedAt,
 			WorktreePath: m.WorktreePath,
-			BackendType:  string(t.Mode),
 			IsActive:     &active,
 		})
 	}
